@@ -8,6 +8,7 @@ class GarminMetarView extends WatchUi.View {
 
     hidden var mMetarCode = "Loading...";
     hidden var mToken; 
+    hidden var mTextArea;
 
     function initialize() {
         View.initialize();
@@ -15,13 +16,25 @@ class GarminMetarView extends WatchUi.View {
 
     // Load your resources here
     function onLayout(dc) {
-        setLayout(Rez.Layouts.MainLayout(dc));
         // Load the token from the secrets file
         if (Rez.Strings has :AvwxToken) {
             mToken = WatchUi.loadResource(Rez.Strings.AvwxToken);
         } else {
             mMetarCode = "Missing Token";
         }
+
+        mTextArea = new WatchUi.TextArea({
+            :text => mMetarCode,
+            :color => Graphics.COLOR_WHITE,
+            :font => Graphics.FONT_XTINY,
+            :locX => 0,
+            :locY => 0,
+            :width => dc.getWidth(),
+            :height => dc.getHeight(),
+            :justification => Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
+        });
+
+        setLayout([ mTextArea ]);
     }
 
     // Called when this View is brought to the foreground. Restore
@@ -33,10 +46,8 @@ class GarminMetarView extends WatchUi.View {
 
     // Update the view
     function onUpdate(dc) {
-        var view = View.findDrawableById("MetarLabel");
-        // Fix: Explicitly check/cast to Text to satisfy the type checker
-        if (view instanceof WatchUi.Text) {
-            view.setText(mMetarCode);
+        if (mTextArea != null) {
+            mTextArea.setText(mMetarCode);
         }
 
         // Call the parent onUpdate function to redraw the layout
@@ -50,7 +61,7 @@ class GarminMetarView extends WatchUi.View {
     }
 
     function makeRequest() {
-        var url = "https://avwx.rest/api/metar/KJFK";
+        var url = "https://avwx.rest/api/metar/EGWU";
         var params = {
             "token" => mToken,
             "format" => "json"
