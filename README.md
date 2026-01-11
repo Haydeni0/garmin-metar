@@ -5,7 +5,7 @@ A Connect IQ app for Garmin Venu 4 (simulated as `venu445mm` or `venu3`) that di
 ## Features
 - **Real-time Weather**: Fetches raw METAR strings.
 - **Station Selection**: Select from a list of airports (e.g., JFK, LHR) via the on-watch menu.
-- **Dynamic List**: Stations are loaded from `resources/json/stations.json`.
+- **Dynamic List**: Stations are configured via App Settings.
 - **Offline Handling**: Graceful error messages and "Loading..." states.
 
 ## Prerequisites
@@ -18,7 +18,8 @@ A Connect IQ app for Garmin Venu 4 (simulated as `venu445mm` or `venu3`) that di
 1.  **Clone the repository**.
 2.  **Configure Settings**:
     - The API Token, Default Station, and Station List are now configured via **App Settings**.
-    - **In Simulator**: Go to **VS Code > Connect IQ: Edit App Settings** (or the "App Settings Editor" in the Simulator menu) to set your Token and customize the station list.
+    - **In Simulator**: Go to **File > Edit Persistent Storage > Edit Application.Preperties data**
+    - **Note**: Paste your AVWX API Token into the field labeled **"AvwxToken"** and click **Save** to apply.
     - **On Device**: Use the Garmin Connect App or Garmin Express.
 
 ## Running locally
@@ -27,5 +28,8 @@ A Connect IQ app for Garmin Venu 4 (simulated as `venu445mm` or `venu3`) that di
 3.  Select **"Simulate App"** and press Play.
 4.  **Important**: In the Simulator, go to **Settings > Connection Type** and ensure **WiFi** is checked/connected to enable web requests.
 
-## Customization
-- **Add Stations**: Edit `resources/json/stations.json` to add new ICAO codes.
+
+## Running Tests
+1.  In VS Code, open the **Command Palette** (`Ctrl+Shift+P`).
+2.  Select **Monkey C: Build and Run Tests**.
+3.  Alternatively, created a **Run Configuration** in `launch.json` or select **"Run Tests"** in the Run and Debug sidebar.
