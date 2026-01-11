@@ -1,0 +1,11 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Simulate App",
+            "type": "monkeyc",
+            "request": "launch",
+            "device": "venu445mm"
+        }
+    ]
+}
