@@ -53,3 +53,11 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Connect IQ
+bin/
+mir/
+gen/
+
+# Secrets
+resources/secrets/secrets.xml

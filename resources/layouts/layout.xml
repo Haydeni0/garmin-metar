@@ -1,0 +1,5 @@
+<resources>
+    <layout id="MainLayout">
+        <label id="MetarLabel" x="center" y="center" justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER" font="Graphics.FONT_TINY" color="Graphics.COLOR_WHITE" />
+    </layout>
+</resources>

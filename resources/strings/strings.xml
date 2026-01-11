@@ -1,0 +1,6 @@
+<resources>
+    <string id="AppName">GarminMetar</string>
+    <string id="Loading">Loading...</string>
+    <string id="NoData">No Data</string>
+    <string id="Error">Error</string>
+</resources>
