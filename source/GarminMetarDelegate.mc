@@ -22,39 +22,8 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
         var stations = [];
         
         if (listStr != null && listStr instanceof String) {
-            // Manual split since String.split isn't always reliable in standard libs or we want explicit control
-            // Actually, Monkey C String doesn't have .split() until newer API levels. 
-            // We'll write a simple parser or assume the user inputs clean data, 
-            // but let's try to find commas.
-            
-            // Simpler approach: build array from comma separation
-            var currentStart = 0;
-            var commaIndex = listStr.find(",");
-            
-            while (commaIndex != null) {
-                var code = listStr.substring(currentStart, commaIndex + currentStart);
-                // Trim logic usually needed, but standard library check...
-                // Only String.substring exists. No trim(). 
-                // We will assume the user might verify no spaces or we just strip them if we could.
-                // For now, let's just create items.
-                if (code != null) {
-                    stations.add(code);
-                }
-                
-                currentStart = currentStart + commaIndex + 1; // skip comma
-                if (currentStart >= listStr.length()) { break; }
-                var sub = listStr.substring(currentStart, listStr.length());
-                commaIndex = sub.find(",");
-            }
-            // Add last item
-            if (currentStart < listStr.length()) {
-                stations.add(listStr.substring(currentStart, listStr.length()));
-            }
+            stations = StationUtils.parseStationString(listStr);
         }
-        
-        // Trim spaces manually from our list (simple space removal)
-        // Monkey C generic helper for string trimming if available? No.
-        // We will just add them as is, but we could improve this later.
         
         // Cast for safety
         var safeStations = stations as Array<String>;
@@ -72,14 +41,6 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
         
         for (var i = 0; i < safeStations.size(); i++) {
             var code = safeStations[i];
-            // Simple trim of leading space if it exists (one level)
-            if (code.length() > 0 && code.substring(0,1).equals(" ")) {
-                code = code.substring(1, code.length());
-            }
-            if (code.length() > 0 && code.substring(code.length()-1, code.length()).equals(" ")) {
-                 code = code.substring(0, code.length()-1);
-            }
-            
             menu.addItem(new WatchUi.MenuItem(code, null, code, null));
         }
         
