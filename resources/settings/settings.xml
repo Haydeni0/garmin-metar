@@ -1,0 +1,11 @@
+<settings>
+    <setting propertyKey="@Properties.AvwxToken" title="@Strings.AvwxTokenTitle">
+        <settingConfig type="alphaNumeric" />
+    </setting>
+    <setting propertyKey="@Properties.TargetStation" title="@Strings.TargetStationTitle">
+        <settingConfig type="alphaNumeric" />
+    </setting>
+    <setting propertyKey="@Properties.StationList" title="@Strings.StationListTitle">
+        <settingConfig type="alphaNumeric" />
+    </setting>
+</settings>

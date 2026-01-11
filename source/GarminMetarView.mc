@@ -2,6 +2,7 @@ using Toybox.WatchUi;
 using Toybox.Graphics;
 using Toybox.Communications;
 using Toybox.System;
+using Toybox.Application;
 import Toybox.Lang;
 
 class GarminMetarView extends WatchUi.View {
@@ -17,11 +18,22 @@ class GarminMetarView extends WatchUi.View {
 
     // Load your resources here
     function onLayout(dc) {
-        // Load the token from the secrets file
-        if (Rez.Strings has :AvwxToken) {
-            mToken = WatchUi.loadResource(Rez.Strings.AvwxToken);
-        } else {
-            mMetarCode = "Missing Token";
+        // Load settings
+        mToken = Application.Properties.getValue("AvwxToken");
+        var defaultStation = Application.Properties.getValue("TargetStation");
+        
+        if (defaultStation != null && !defaultStation.equals("")) {
+             // Only set mStation on startup or if specifically needed, 
+             // but usually we want to respect the user's last selection or the default.
+             // For now, let's respect the property if the memory is empty.
+             if (mStation.equals("EGWU") && !defaultStation.equals("EGWU")) {
+                 mStation = defaultStation;
+                 mMetarCode = "Loading...";
+             }
+        }
+        
+        if (mToken == null || mToken.equals("YOUR_TOKEN_HERE") || mToken.equals("")) {
+             mMetarCode = "Set Token in App Settings";
         }
 
         mTextArea = new WatchUi.TextArea({
@@ -36,6 +48,14 @@ class GarminMetarView extends WatchUi.View {
         });
 
         setLayout([ mTextArea ]);
+    }
+    
+    // Helper to refresh data when settings change
+    function updateFromSettings() {
+        mToken = Application.Properties.getValue("AvwxToken");
+        // We might want to update the station too if the user changed the default
+        // But let's prioritize the token update for now
+        makeRequest();
     }
 
     // Called when this View is brought to the foreground. Restore
@@ -71,6 +91,12 @@ class GarminMetarView extends WatchUi.View {
     }
 
     function makeRequest() {
+        if (mToken == null || mToken.equals("YOUR_TOKEN_HERE") || mToken.equals("")) {
+             mMetarCode = "Set Token in App Settings";
+             WatchUi.requestUpdate();
+             return;
+        }
+
         var url = "https://avwx.rest/api/metar/" + mStation;
         var params = {
             "token" => mToken,
@@ -100,6 +126,9 @@ class GarminMetarView extends WatchUi.View {
            }
        } else {
            mMetarCode = "Error: " + responseCode;
+           if (responseCode == 401 || responseCode == 403) {
+               mMetarCode += "\nCheck App Settings";
+           }
        }
        WatchUi.requestUpdate();
     }

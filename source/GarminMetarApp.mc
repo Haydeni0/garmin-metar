@@ -3,6 +3,8 @@ using Toybox.WatchUi;
 
 class GarminMetarApp extends Application.AppBase {
 
+    hidden var mView;
+
     function initialize() {
         AppBase.initialize();
     }
@@ -15,10 +17,18 @@ class GarminMetarApp extends Application.AppBase {
     function onStop(state) {
     }
 
+    // New: Handle settings changes from the phone
+    function onSettingsChanged() {
+        if (mView != null) {
+            mView.updateFromSettings();
+        }
+        WatchUi.requestUpdate();
+    }
+
     // Return the initial view of your application here
     function getInitialView() {
-        var view = new GarminMetarView();
-        var delegate = new GarminMetarDelegate(view);
-        return [ view, delegate ];
+        mView = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(mView);
+        return [ mView, delegate ];
     }
 }

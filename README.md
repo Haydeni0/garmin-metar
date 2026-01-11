@@ -16,15 +16,10 @@ A Connect IQ app for Garmin Venu 4 (simulated as `venu445mm` or `venu3`) that di
 
 ## Setup
 1.  **Clone the repository**.
-2.  **Configure API Key**:
-    - Creation: `resources/secrets/secrets.xml`
-    - Content:
-      ```xml
-      <strings>
-          <string id="AvwxToken">YOUR_TOKEN_HERE</string>
-      </strings>
-      ```
-    - *Note: This file is ignored by git.*
+2.  **Configure Settings**:
+    - The API Token, Default Station, and Station List are now configured via **App Settings**.
+    - **In Simulator**: Go to **VS Code > Connect IQ: Edit App Settings** (or the "App Settings Editor" in the Simulator menu) to set your Token and customize the station list.
+    - **On Device**: Use the Garmin Connect App or Garmin Express.
 
 ## Running locally
 1.  Open the project in VS Code.
