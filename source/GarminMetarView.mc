@@ -33,14 +33,14 @@ class GarminMetarView extends WatchUi.View {
 
     // Update the view
     function onUpdate(dc) {
-        // Call the parent onUpdate function to redraw the layout
-        View.onUpdate(dc);
-
         var view = View.findDrawableById("MetarLabel");
         // Fix: Explicitly check/cast to Text to satisfy the type checker
         if (view instanceof WatchUi.Text) {
             view.setText(mMetarCode);
         }
+
+        // Call the parent onUpdate function to redraw the layout
+        View.onUpdate(dc);
     }
 
     // Called when this View is removed from the screen. Save the
@@ -61,12 +61,16 @@ class GarminMetarView extends WatchUi.View {
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
         };
 
+        System.println("Making Request to: " + url);
         // Note: In newer Monkey C SDKs, callback scope is handled automatically or via method()
         Communications.makeWebRequest(url, params, options, method(:onReceive));
     }
 
     // Fix: Add explicit types to match the makeWebRequest callback signature requirements
     function onReceive(responseCode as Number, data as Dictionary or String or Null) as Void {
+       System.println("Response: " + responseCode);
+       System.println("Data: " + data);
+       
        if (responseCode == 200) {
            if (data instanceof Dictionary && data.hasKey("raw")) {
                mMetarCode = data["raw"];
