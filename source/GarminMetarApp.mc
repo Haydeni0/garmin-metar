@@ -17,6 +17,8 @@ class GarminMetarApp extends Application.AppBase {
 
     // Return the initial view of your application here
     function getInitialView() {
-        return [ new GarminMetarView(), new GarminMetarDelegate() ];
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+        return [ view, delegate ];
     }
 }

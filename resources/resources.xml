@@ -1,0 +1,3 @@
+<resources>
+    <jsonData id="Stations" filename="json/stations.json" />
+</resources>

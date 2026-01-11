@@ -9,6 +9,7 @@ class GarminMetarView extends WatchUi.View {
     hidden var mMetarCode = "Loading...";
     hidden var mToken; 
     hidden var mTextArea;
+    hidden var mStation = "EGWU";
 
     function initialize() {
         View.initialize();
@@ -43,6 +44,15 @@ class GarminMetarView extends WatchUi.View {
     function onShow() {
         makeRequest();
     }
+    
+    function setStation(station) {
+        mStation = station;
+        mMetarCode = "Loading " + station + "...";
+        if (mTextArea != null) {
+            mTextArea.setText(mMetarCode);
+        }
+        WatchUi.requestUpdate();
+    }
 
     // Update the view
     function onUpdate(dc) {
@@ -61,7 +71,7 @@ class GarminMetarView extends WatchUi.View {
     }
 
     function makeRequest() {
-        var url = "https://avwx.rest/api/metar/EGWU";
+        var url = "https://avwx.rest/api/metar/" + mStation;
         var params = {
             "token" => mToken,
             "format" => "json"
