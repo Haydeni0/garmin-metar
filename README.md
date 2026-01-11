@@ -9,6 +9,11 @@ A Connect IQ app for Garmin Venu 4 (Currently just testing on `venu445mm`) that 
 - **Station Selection**: Select from a list of airports (e.g., JFK, LHR) via the on-watch menu.
   - Stations are configured via App Settings.
 
+
+Example output from simulator (and on watch when installed):
+
+<img src="media/watch_simulator_output.png" alt="alt text" width="400"/>
+
 ## Development notes
 
 ### Prerequisites
@@ -36,3 +41,20 @@ A Connect IQ app for Garmin Venu 4 (Currently just testing on `venu445mm`) that 
 1.  In VS Code, open the **Command Palette** (`Ctrl+Shift+P`).
 2.  Select **Monkey C: Run Tests**.
 3.  Alternatively, created a **Run Configuration** in `launch.json` or select **"Run Tests"** in the Run and Debug sidebar.
+
+## Deploying to Device (Side-Loading)
+To install this app on your physical Garmin watch without publishing to the store:
+1.  **Connect your watch** to your computer via USB.
+2.  In VS Code, run **Monkey C: Build for Device**.
+    - Select or make a new folder to build into: `./bin/`.
+    - Choose `Release` build.
+    - Select your device model (e.g., `venu445`).
+    - This creates a `.prg` file in the `bin/` folder (e.g., `bin/garminmetar.prg`).
+3.  **Copy the file**:
+    - Open your watch's file system (it appears as a USB drive).
+    - Navigate to the `GARMIN/APPS` folder.
+    - Drag and drop `bin/garminmetar.prg` into `GARMIN/APPS`.
+4.  **Disconnect** the watch.
+5.  On the watch, long-press the screen, select **Watch Face**, and scroll to find "Garmin Metar".
+6.  To configure settings, use the **Garmin Connect App** on your phone (tap the device > Activities, Apps & More > Watch Faces > Garmin Metar > Settings).
+7.  Add your AVWX API key to the app settings.
