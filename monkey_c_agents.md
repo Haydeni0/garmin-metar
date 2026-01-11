@@ -192,4 +192,10 @@ try {
 } catch (ex instanceof Lang.InvalidValueException) {
     // handle
 }
-```
+
+## 16. Official References
+
+*   [Connect IQ Developer Site](https://developer.garmin.com/connect-iq/overview/)
+*   [Monkey C Language Guide](https://developer.garmin.com/connect-iq/monkey-c/)
+*   [Toybox API Reference](https://developer.garmin.com/connect-iq/api-docs/)
+*   [User Interface Guide](https://developer.garmin.com/connect-iq/core-topics/user-interface/)
