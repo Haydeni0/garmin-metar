@@ -12,7 +12,7 @@ A Connect IQ app for Garmin Venu 4 (Currently just testing on `venu445mm`) that 
 
 Example output from simulator (and on watch when installed):
 
-<img src="media/watch_simulator_output.png" alt="alt text" width="400"/>
+<img src="media/watch_simulator_output_small.png" alt="alt text" width="400"/>
 
 ## Development notes
 

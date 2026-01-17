@@ -12,10 +12,28 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     }
 
     function onMenu() {
+        Application.getApp().resetTimer();
         return true;
     }
     
+    // Capture interactions to reset the inactivity timer
+    function onKey(keyEvent) {
+        Application.getApp().resetTimer();
+        return false; // Allow default behavior
+    }
+    
+    function onTap(clickEvent) {
+        Application.getApp().resetTimer();
+        return false;
+    }
+    
+    function onSwipe(swipeEvent) {
+        Application.getApp().resetTimer();
+        return false;
+    }
+    
     function onSelect() {
+        Application.getApp().resetTimer();
         var menu = new WatchUi.Menu2({:title=>"Select Station"});
         
         var listStr = Application.Properties.getValue("StationList");
@@ -58,6 +76,7 @@ class StationMenuDelegate extends WatchUi.Menu2InputDelegate {
     }
     
     function onSelect(item) {
+        Application.getApp().resetTimer();
         var id = item.getId();
         mView.setStation(id);
         mView.makeRequest();
