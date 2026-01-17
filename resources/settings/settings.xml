@@ -8,4 +8,12 @@
     <setting propertyKey="@Properties.StationList" title="@Strings.StationListTitle">
         <settingConfig type="alphaNumeric" />
     </setting>
+    <setting propertyKey="@Properties.AutoExitSeconds" title="Auto-Exit Timer">
+        <settingConfig type="list">
+            <listEntry value="30">30 Seconds</listEntry>
+            <listEntry value="60">1 Minute</listEntry>
+            <listEntry value="120">2 Minutes</listEntry>
+            <listEntry value="0">Unlimited</listEntry>
+        </settingConfig>
+    </setting>
 </settings>

@@ -2,4 +2,5 @@
     <property id="AvwxToken" type="string">YOUR_TOKEN_HERE</property>
     <property id="TargetStation" type="string">EGWU</property>
     <property id="StationList" type="string">EGWU,EGLL,EGUB,EGVO,KJFK,KLAX</property>
+    <property id="AutoExitSeconds" type="number">30</property>
 </properties>

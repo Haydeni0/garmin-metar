@@ -7,15 +7,12 @@ class GarminMetarApp extends Application.AppBase {
 
     hidden var mView;
     hidden var mTimer;
-    const TIMEOUT_MS = 60000; // 60 seconds
-
     function initialize() {
         AppBase.initialize();
     }
 
-    // onStart() is called on application start up
     function onStart(state) {
-        startTimer();
+        resetTimer();
     }
 
     // onStop() is called when your application is exiting
@@ -27,24 +24,28 @@ class GarminMetarApp extends Application.AppBase {
 
     // New: Handle settings changes from the phone
     function onSettingsChanged() {
-        resetTimer(); // User interaction via phone counts as activity? Maybe. Safe to reset.
+        resetTimer(); 
         if (mView != null) {
             mView.updateFromSettings();
         }
         WatchUi.requestUpdate();
     }
     
-    function startTimer() {
-        mTimer = new Timer.Timer();
-        mTimer.start(method(:onTimerTimeout), TIMEOUT_MS, false); // false = one-shot
-    }
-    
     function resetTimer() {
+        var seconds = Application.Properties.getValue("AutoExitSeconds");
+        if (seconds == null) { seconds = 60; }
+        
+        // Always stop the current timer if it exists
         if (mTimer != null) {
             mTimer.stop();
-            mTimer.start(method(:onTimerTimeout), TIMEOUT_MS, false);
-        } else {
-            startTimer();
+        }
+        
+        // If seconds is 0, we treated it as "Unlimited", so don't start the timer.
+        if (seconds > 0) {
+            if (mTimer == null) {
+                mTimer = new Timer.Timer();
+            }
+            mTimer.start(method(:onTimerTimeout), seconds * 1000, false);
         }
     }
     
