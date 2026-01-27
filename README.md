@@ -1,8 +1,8 @@
 # Garmin METAR App
 
-A Connect IQ app for Garmin Venu 4 (Currently just testing on `venu445mm`) that displays real-time METAR weather data, using the [AVWX API](https://avwx.rest).
+A Connect IQ app for Garmin watches that displays real-time METAR weather data, using the [AVWX API](https://avwx.rest).
 
-> **Note**: This app is experimental, built as quick as possible for personal use.
+> **Note**: This app is experimental, built as quickly as possible for personal use.
 
 ## Features
 - **Real-time Weather**: Fetches raw METAR strings.
