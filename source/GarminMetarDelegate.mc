@@ -36,6 +36,8 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     hidden var mIsVerticalDrag = false;
     
     function onDrag(dragEvent) {
+        if (!mView.isShowingTaf()) { return false; }
+        
         var coord = dragEvent.getCoordinates();
         var type = dragEvent.getType(); // e.g. WatchUi.DRAG_TYPE_START
         
