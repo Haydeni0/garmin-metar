@@ -29,8 +29,15 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     
     function onSwipe(swipeEvent) {
         Application.getApp().resetTimer();
-        mView.toggleTaf();
-        return true;
+        
+        var dir = swipeEvent.getDirection();
+        if (dir == WatchUi.SWIPE_LEFT || dir == WatchUi.SWIPE_RIGHT) {
+            mView.toggleTaf();
+            return true;
+        }
+        
+        // Let up/down swipes fall through if you want default behavior
+        return false;
     }
     
     function onSelect() {
