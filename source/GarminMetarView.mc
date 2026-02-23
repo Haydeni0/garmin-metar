@@ -11,6 +11,7 @@ class GarminMetarView extends WatchUi.View {
     hidden var mToken; 
     hidden var mTextArea;
     hidden var mStation = "EGWU";
+    hidden var mIsShowingTaf = false;
 
     function initialize() {
         View.initialize();
@@ -68,11 +69,29 @@ class GarminMetarView extends WatchUi.View {
     
     function setStation(station) {
         mStation = station;
-        mMetarCode = "Loading " + station + "...";
+        if (mIsShowingTaf) {
+            mMetarCode = "Loading TAF: " + station + "...";
+        } else {
+            mMetarCode = "Loading METAR: " + station + "...";
+        }
         if (mTextArea != null) {
             mTextArea.setText(mMetarCode);
         }
         WatchUi.requestUpdate();
+    }
+
+    function toggleTaf() {
+        mIsShowingTaf = !mIsShowingTaf;
+        if (mIsShowingTaf) {
+            mMetarCode = "Loading TAF: " + mStation + "...";
+        } else {
+            mMetarCode = "Loading METAR: " + mStation + "...";
+        }
+        if (mTextArea != null) {
+            mTextArea.setText(mMetarCode);
+        }
+        WatchUi.requestUpdate();
+        makeRequest();
     }
 
     // Update the view
@@ -99,6 +118,9 @@ class GarminMetarView extends WatchUi.View {
         }
 
         var url = "https://avwx.rest/api/metar/" + mStation;
+        if (mIsShowingTaf) {
+            url = "https://avwx.rest/api/taf/" + mStation;
+        }
         var params = {
             "token" => mToken,
             "format" => "json"

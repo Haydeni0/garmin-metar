@@ -29,7 +29,8 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     
     function onSwipe(swipeEvent) {
         Application.getApp().resetTimer();
-        return false;
+        mView.toggleTaf();
+        return true;
     }
     
     function onSelect() {
