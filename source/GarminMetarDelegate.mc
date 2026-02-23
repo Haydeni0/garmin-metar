@@ -19,6 +19,14 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     // Capture interactions to reset the inactivity timer
     function onKey(keyEvent) {
         Application.getApp().resetTimer();
+        var key = keyEvent.getKey();
+        if (key == WatchUi.KEY_UP) {
+            mView.scroll(1);
+            return true;
+        } else if (key == WatchUi.KEY_DOWN) {
+            mView.scroll(-1);
+            return true;
+        }
         return false; // Allow default behavior
     }
     
@@ -34,9 +42,14 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
         if (dir == WatchUi.SWIPE_LEFT || dir == WatchUi.SWIPE_RIGHT) {
             mView.toggleTaf();
             return true;
+        } else if (dir == WatchUi.SWIPE_UP) {
+            mView.scroll(-1);
+            return true;
+        } else if (dir == WatchUi.SWIPE_DOWN) {
+            mView.scroll(1);
+            return true;
         }
         
-        // Let up/down swipes fall through if you want default behavior
         return false;
     }
     

@@ -9,9 +9,11 @@ class GarminMetarView extends WatchUi.View {
 
     hidden var mMetarCode = "Loading...";
     hidden var mToken; 
-    hidden var mTextArea;
+    hidden var mTextAreaMetar;
+    hidden var mTextAreaTaf;
     hidden var mStation = "EGWU";
     hidden var mIsShowingTaf = false;
+    hidden var mScrollY = 0;
 
     function initialize() {
         View.initialize();
@@ -37,7 +39,7 @@ class GarminMetarView extends WatchUi.View {
              mMetarCode = "Set Token in App Settings";
         }
 
-        mTextArea = new WatchUi.TextArea({
+        mTextAreaMetar = new WatchUi.TextArea({
             :text => mMetarCode,
             :color => Graphics.COLOR_WHITE,
             :font => Graphics.FONT_XTINY,
@@ -48,7 +50,22 @@ class GarminMetarView extends WatchUi.View {
             :justification => Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
         });
 
-        setLayout([ mTextArea ]);
+        mTextAreaTaf = new WatchUi.TextArea({
+            :text => mMetarCode,
+            :color => Graphics.COLOR_WHITE,
+            :font => Graphics.FONT_XTINY,
+            :locX => 0,
+            :locY => dc.getHeight() / 2,
+            :width => dc.getWidth(),
+            :height => 2000,
+            :justification => Graphics.TEXT_JUSTIFY_CENTER
+        });
+
+        if (mIsShowingTaf) {
+            setLayout([ mTextAreaTaf ]);
+        } else {
+            setLayout([ mTextAreaMetar ]);
+        }
     }
     
     // Helper to refresh data when settings change
@@ -69,35 +86,51 @@ class GarminMetarView extends WatchUi.View {
     
     function setStation(station) {
         mStation = station;
+        mScrollY = 0;
         if (mIsShowingTaf) {
             mMetarCode = "Loading TAF: " + station + "...";
         } else {
             mMetarCode = "Loading METAR: " + station + "...";
-        }
-        if (mTextArea != null) {
-            mTextArea.setText(mMetarCode);
         }
         WatchUi.requestUpdate();
     }
 
     function toggleTaf() {
         mIsShowingTaf = !mIsShowingTaf;
+        mScrollY = 0;
         if (mIsShowingTaf) {
             mMetarCode = "Loading TAF: " + mStation + "...";
+            if (mTextAreaTaf != null) {
+                setLayout([ mTextAreaTaf ]);
+            }
         } else {
             mMetarCode = "Loading METAR: " + mStation + "...";
-        }
-        if (mTextArea != null) {
-            mTextArea.setText(mMetarCode);
+            if (mTextAreaMetar != null) {
+                setLayout([ mTextAreaMetar ]);
+            }
         }
         WatchUi.requestUpdate();
         makeRequest();
     }
 
+    function scroll(dir) {
+        mScrollY += (dir * 40);
+        if (mScrollY > 0) {
+            mScrollY = 0;
+        }
+        WatchUi.requestUpdate();
+    }
+
     // Update the view
     function onUpdate(dc) {
-        if (mTextArea != null) {
-            mTextArea.setText(mMetarCode);
+        if (mTextAreaMetar != null && mTextAreaTaf != null) {
+            if (mIsShowingTaf) {
+                mTextAreaTaf.setText(mMetarCode);
+                mTextAreaTaf.locY = (dc.getHeight() / 2) + mScrollY;
+            } else {
+                mTextAreaMetar.setText(mMetarCode);
+                mTextAreaMetar.locY = mScrollY;
+            }
         }
 
         // Call the parent onUpdate function to redraw the layout
