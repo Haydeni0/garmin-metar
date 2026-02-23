@@ -113,12 +113,16 @@ class GarminMetarView extends WatchUi.View {
         makeRequest();
     }
 
-    function scroll(dir) {
-        mScrollY += (dir * 40);
+    function applyScrollDelta(deltaY as Float) {
+        mScrollY += deltaY;
         if (mScrollY > 0) {
             mScrollY = 0;
         }
         WatchUi.requestUpdate();
+    }
+
+    function scroll(dir) {
+        applyScrollDelta((dir * 40).toFloat());
     }
 
     // Update the view

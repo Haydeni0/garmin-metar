@@ -1,5 +1,6 @@
 using Toybox.WatchUi;
 using Toybox.Application;
+using Toybox.Math;
 import Toybox.Lang;
 
 class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
@@ -29,6 +30,45 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
         }
         return false; // Allow default behavior
     }
+    
+    hidden var mLastDragX = null;
+    hidden var mLastDragY = null;
+    hidden var mIsVerticalDrag = false;
+    
+    function onDrag(dragEvent) {
+        var coord = dragEvent.getCoordinates();
+        var type = dragEvent.getType(); // e.g. WatchUi.DRAG_TYPE_START
+        
+        if (type == WatchUi.DRAG_TYPE_START) {
+            mLastDragX = coord[0];
+            mLastDragY = coord[1];
+            mIsVerticalDrag = false;
+            return false;
+        } else if (type == WatchUi.DRAG_TYPE_CONTINUE) {
+            if (mLastDragX != null && mLastDragY != null) {
+                var deltaX = coord[0] - mLastDragX;
+                var deltaY = coord[1] - mLastDragY;
+
+                if (!mIsVerticalDrag && deltaY.abs() > deltaX.abs() && deltaY.abs() > 5) {
+                    mIsVerticalDrag = true;
+                }
+
+                if (mIsVerticalDrag) {
+                    mView.applyScrollDelta(deltaY.toFloat());
+                    mLastDragX = coord[0];
+                    mLastDragY = coord[1];
+                    return true;
+                }
+            }
+        } else if (type == WatchUi.DRAG_TYPE_STOP) {
+            mLastDragX = null;
+            mLastDragY = null;
+            mIsVerticalDrag = false;
+        }
+        
+        return false;
+    }
+
     
     function onTap(clickEvent) {
         Application.getApp().resetTimer();
