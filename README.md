@@ -7,7 +7,8 @@ A Connect IQ app for Garmin watches that displays real-time METAR weather data, 
 See on the [Garmin app store](https://apps.garmin.com/apps/2261817c-e073-4450-962f-10f5fa11840d).
 
 ## Features
-- **Real-time Weather**: Fetches raw METAR strings.
+- **Real-time Weather**: Fetches raw METAR strings and TAF forecast data.
+- **Swipe for TAF**: Swipe Left or Right on the main screen to toggle between the current METAR and the TAF forecast.
 - **Station Selection**: Select from a list of airports (e.g., JFK, LHR) via the on-watch menu.
   - Stations are configured via App Settings.
 
