@@ -24,7 +24,12 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     }
 
     function handleKey(key) {
-        if (key == WatchUi.KEY_UP) {
+        if (key == WatchUi.KEY_ENTER) {
+            mView.toggleTaf();
+            return true;
+        } else if (key == WatchUi.KEY_MENU) {
+            return pushStationMenu();
+        } else if (key == WatchUi.KEY_UP) {
             mView.scroll(1);
             return true;
         } else if (key == WatchUi.KEY_DOWN) {
@@ -78,7 +83,11 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     
     function onTap(clickEvent) {
         Application.getApp().resetTimer();
-        return false;
+        return handleTap();
+    }
+
+    function handleTap() {
+        return pushStationMenu();
     }
     
     function onSwipe(swipeEvent) {
@@ -103,8 +112,7 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     
     function onSelect() {
         Application.getApp().resetTimer();
-        mView.toggleTaf();
-        return true;
+        return false;
     }
 
     function pushStationMenu() as Boolean {

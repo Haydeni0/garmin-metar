@@ -24,7 +24,7 @@ See on the [Garmin app store](https://apps.garmin.com/apps/2261817c-e073-4450-96
 
 ### Touchscreen Watches (Venu, Vivoactive)
 - **Toggle METAR / TAF**: Swipe left/right OR press the top button.
-- **Open Station Menu**: Press and hold the bottom button.
+- **Open Station Menu**: Tap the touchscreen OR press and hold the bottom button.
 - **Scroll Report Text**: Drag vertically or swipe up/down.
 
 Example output from simulator (and on watch when installed):

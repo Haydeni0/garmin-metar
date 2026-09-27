@@ -23,7 +23,7 @@ Garmin Connect IQ watch app displaying real-time aviation weather reports (METAR
 
 ## 4. Airport Station Management
 - **Startup Station**: Loads from `TargetStation` setting (default `EGWU`).
-- **Station Menu**: Opened via `onMenu()` (Menu button). Displays stations parsed from `StationList` setting sorted alphabetically.
+- **Station Menu**: Opened via `onMenu()` (Menu button on 5-button watches) or screen tap (`onTap()` on touchscreen watches). Displays stations parsed from `StationList` setting sorted alphabetically.
 - **Selection Scope**: Selecting a station updates the view and fetches data for the active session only. Does not overwrite the `TargetStation` property. Next app launch reverts to configured default.
 
 ## 5. Network & Caching

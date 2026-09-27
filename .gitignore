@@ -72,4 +72,9 @@ developer_key
 # Media & simulator outputs (keep only readme asset)
 media/*
 !media/watch_simulator_output_small.png
+
+# Python
+__pycache__/
+*.pyc
+
 

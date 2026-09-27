@@ -139,7 +139,7 @@ module DelegateTests {
     }
 
     (:test)
-    function testOnSelectTogglesTaf(logger as Test.Logger) as Boolean {
+    function testKeyEnterTogglesTaf(logger as Test.Logger) as Boolean {
         var view = new GarminMetarView();
         var delegate = new GarminMetarDelegate(view);
 
@@ -148,15 +148,28 @@ module DelegateTests {
             return false;
         }
 
-        var handled = delegate.onSelect();
+        var handled = delegate.handleKey(WatchUi.KEY_ENTER);
         if (!handled || !view.isShowingTaf()) {
-            logger.debug("Expected onSelect to toggle TAF to true");
+            logger.debug("Expected KEY_ENTER to toggle TAF to true");
             return false;
         }
 
-        handled = delegate.onSelect();
+        handled = delegate.handleKey(WatchUi.KEY_ENTER);
         if (!handled || view.isShowingTaf()) {
-            logger.debug("Expected second onSelect to toggle back to METAR");
+            logger.debug("Expected second KEY_ENTER to toggle back to METAR");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testOnSelectReturnsFalseForFallthrough(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+
+        var handled = delegate.onSelect();
+        if (handled) {
+            logger.debug("Expected onSelect to return false to allow fallthrough to onKey/onTap");
             return false;
         }
         return true;
@@ -170,6 +183,92 @@ module DelegateTests {
         var handled = delegate.onMenu();
         if (!handled) {
             logger.debug("Expected onMenu to return true");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testTapOpensStationMenu(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+
+        var handled = delegate.handleTap();
+        if (!handled) {
+            logger.debug("Expected handleTap to return true");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testOnSelectDoesNotToggleTaf(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+
+        var showingBefore = view.isShowingTaf();
+        delegate.onSelect();
+        if (view.isShowingTaf() != showingBefore) {
+            logger.debug("onSelect must not toggle TAF (touch taps route to onSelect)");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testTapDoesNotToggleTaf(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+
+        var showingBefore = view.isShowingTaf();
+        delegate.handleTap();
+        if (view.isShowingTaf() != showingBefore) {
+            logger.debug("handleTap must not toggle TAF");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testKeyMenuOpensStationMenu(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+
+        var handled = delegate.handleKey(WatchUi.KEY_MENU);
+        if (!handled) {
+            logger.debug("Expected KEY_MENU to open station menu");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testSwipeUpAndDownScroll(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+
+        var handledUp = delegate.handleSwipe(WatchUi.SWIPE_UP);
+        if (!handledUp || view.getScrollY() != -40) {
+            logger.debug("Expected scroll -40 after SWIPE_UP, got: " + view.getScrollY());
+            return false;
+        }
+
+        var handledDown = delegate.handleSwipe(WatchUi.SWIPE_DOWN);
+        if (!handledDown || view.getScrollY() != 0) {
+            logger.debug("Expected scroll 0 after SWIPE_DOWN, got: " + view.getScrollY());
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testUnhandledKeyReturnsFalse(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+
+        var handled = delegate.handleKey(WatchUi.KEY_ESC);
+        if (handled) {
+            logger.debug("Expected unhandled key KEY_ESC to return false for system back/exit");
             return false;
         }
         return true;
