@@ -36,6 +36,7 @@ Example output from simulator (and on watch when installed):
 ### Running locally
 1.  Open the project in VS Code.
 2.  Go to **Run and Debug** (`Ctrl+Shift+D`).
+  - A developer key may be needed, at the path `./developer_key`
 3.  Select **"Simulate App"** and press Play.
 4.  **Important**: In the Simulator, go to **Settings > Connection Type** and ensure **WiFi** is checked/connected to enable web requests.
 
