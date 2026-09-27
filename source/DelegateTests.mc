@@ -139,13 +139,37 @@ module DelegateTests {
     }
 
     (:test)
-    function testOnSelectReturnsTrue(logger as Test.Logger) as Boolean {
+    function testOnSelectTogglesTaf(logger as Test.Logger) as Boolean {
         var view = new GarminMetarView();
         var delegate = new GarminMetarDelegate(view);
 
+        if (view.isShowingTaf()) {
+            logger.debug("Expected initially not showing TAF");
+            return false;
+        }
+
         var handled = delegate.onSelect();
+        if (!handled || !view.isShowingTaf()) {
+            logger.debug("Expected onSelect to toggle TAF to true");
+            return false;
+        }
+
+        handled = delegate.onSelect();
+        if (!handled || view.isShowingTaf()) {
+            logger.debug("Expected second onSelect to toggle back to METAR");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testOnMenuOpensStationMenu(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+
+        var handled = delegate.onMenu();
         if (!handled) {
-            logger.debug("Expected onSelect to return true");
+            logger.debug("Expected onMenu to return true");
             return false;
         }
         return true;

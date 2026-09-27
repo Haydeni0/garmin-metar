@@ -14,7 +14,7 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
 
     function onMenu() {
         Application.getApp().resetTimer();
-        return true;
+        return pushStationMenu();
     }
     
     // Capture interactions to reset the inactivity timer
@@ -103,6 +103,11 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     
     function onSelect() {
         Application.getApp().resetTimer();
+        mView.toggleTaf();
+        return true;
+    }
+
+    function pushStationMenu() as Boolean {
         var menu = new WatchUi.Menu2({:title=>"Select Station"});
         
         var listStr = Application.Properties.getValue("StationList");

@@ -7,7 +7,7 @@ Garmin Connect IQ watch app displaying real-time aviation weather reports (METAR
 
 ## 2. Default Views & Screen States
 - **Startup Mode**: Initial view displays the METAR report for the active station.
-- **Toggle View**: User switches between METAR and TAF via horizontal touch swipe (`SWIPE_LEFT` / `SWIPE_RIGHT`).
+- **Toggle View**: User switches between METAR and TAF via horizontal touch swipe (`SWIPE_LEFT` / `SWIPE_RIGHT`) or physical Select/Start button (`onSelect()`).
 - **Loading State**: Displays `"Loading METAR: <ICAO>..."` or `"Loading TAF: <ICAO>..."`.
 - **Status Codes & Errors**:
   - Missing token: `"Set Token in App Settings"`
@@ -23,7 +23,7 @@ Garmin Connect IQ watch app displaying real-time aviation weather reports (METAR
 
 ## 4. Airport Station Management
 - **Startup Station**: Loads from `TargetStation` setting (default `EGWU`).
-- **Station Menu**: Opened via `onSelect()` (Start/Enter button). Displays stations parsed from `StationList` setting sorted alphabetically.
+- **Station Menu**: Opened via `onMenu()` (Menu button). Displays stations parsed from `StationList` setting sorted alphabetically.
 - **Selection Scope**: Selecting a station updates the view and fetches data for the active session only. Does not overwrite the `TargetStation` property. Next app launch reverts to configured default.
 
 ## 5. Network & Caching
