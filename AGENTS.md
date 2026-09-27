@@ -35,6 +35,7 @@ touching `LayoutProfile` or drawing logic.
 | File | Answers |
 |------|---------|
 | `README.md` | Project overview, Connect IQ SDK setup, and build instructions |
+| `REQUIREMENTS.md` | Product requirements, UX behavior, settings, and archetype constraints |
 | `MEMORY.md` | Verified lessons learned - read at session start |
 
 ## Autonomy
