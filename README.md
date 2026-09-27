@@ -8,10 +8,24 @@ See on the [Garmin app store](https://apps.garmin.com/apps/2261817c-e073-4450-96
 
 ## Features
 - **Real-time Weather**: Fetches raw METAR strings and TAF forecast data.
-- **Swipe for TAF**: Swipe Left or Right on the main screen to toggle between the current METAR and the TAF forecast.
-- **Station Selection**: Select from a list of airports (e.g., JFK, LHR) via the on-watch menu.
+- **Toggle METAR / TAF**: Switch between current METAR and TAF forecast via Start button or horizontal swipe.
+- **Station Selection**: Select from a list of airports via on-watch menu.
   - Stations are configured via App Settings.
 
+## Controls & Navigation
+
+### 5-Button Watches (Instinct, Fenix, Forerunner)
+- **Toggle METAR / TAF**: Press **START / GPS** (top-right button).
+- **Open Station Menu**: Press and hold **MENU** (middle-left button, ~1 sec).
+  - In Simulator: Right-click MENU, click-and-hold for ~1 sec, or press **`M`** on keyboard.
+  - In Menu: Use **UP / DOWN** buttons to highlight, **START** to select, **BACK** to cancel.
+- **Scroll Report Text**: Press **UP** (middle-left short click) or **DOWN** (bottom-left button).
+- **Exit App**: Press **BACK / SET** (bottom-right button).
+
+### Touchscreen Watches (Venu, Vivoactive)
+- **Toggle METAR / TAF**: Swipe left/right OR press the top button.
+- **Open Station Menu**: Press and hold the bottom button.
+- **Scroll Report Text**: Drag vertically or swipe up/down.
 
 Example output from simulator (and on watch when installed):
 
