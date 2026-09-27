@@ -20,7 +20,10 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     // Capture interactions to reset the inactivity timer
     function onKey(keyEvent) {
         Application.getApp().resetTimer();
-        var key = keyEvent.getKey();
+        return handleKey(keyEvent.getKey());
+    }
+
+    function handleKey(key) {
         if (key == WatchUi.KEY_UP) {
             mView.scroll(1);
             return true;
@@ -36,10 +39,11 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     hidden var mIsVerticalDrag = false;
     
     function onDrag(dragEvent) {
+        return handleDrag(dragEvent.getType(), dragEvent.getCoordinates());
+    }
+
+    function handleDrag(type, coord) {
         if (!mView.isShowingTaf()) { return false; }
-        
-        var coord = dragEvent.getCoordinates();
-        var type = dragEvent.getType(); // e.g. WatchUi.DRAG_TYPE_START
         
         if (type == WatchUi.DRAG_TYPE_START) {
             mLastDragX = coord[0];
@@ -79,8 +83,10 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     
     function onSwipe(swipeEvent) {
         Application.getApp().resetTimer();
-        
-        var dir = swipeEvent.getDirection();
+        return handleSwipe(swipeEvent.getDirection());
+    }
+
+    function handleSwipe(dir) {
         if (dir == WatchUi.SWIPE_LEFT || dir == WatchUi.SWIPE_RIGHT) {
             mView.toggleTaf();
             return true;

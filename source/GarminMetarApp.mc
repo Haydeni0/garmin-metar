@@ -2,6 +2,7 @@ using Toybox.Application;
 using Toybox.WatchUi;
 using Toybox.Timer;
 using Toybox.System;
+import Toybox.Lang;
 
 class GarminMetarApp extends Application.AppBase {
 
@@ -46,7 +47,17 @@ class GarminMetarApp extends Application.AppBase {
                 mTimer = new Timer.Timer();
             }
             mTimer.start(method(:onTimerTimeout), seconds * 1000, false);
+        } else {
+            mTimer = null;
         }
+    }
+    
+    function hasActiveTimer() as Boolean {
+        return mTimer != null;
+    }
+
+    function getView() {
+        return mView;
     }
     
     function onTimerTimeout() as Void {

@@ -226,4 +226,24 @@ class GarminMetarView extends WatchUi.View {
        }
        WatchUi.requestUpdate();
     }
+
+    function getMetarCode() as String {
+        return mMetarCode;
+    }
+
+    function getFlightRules() as String or Null {
+        return mFlightRules;
+    }
+
+    function getStation() as String {
+        return mStation;
+    }
+
+    function getScrollY() as Number or Float {
+        return mScrollY;
+    }
+
+    function setToken(token as String) as Void {
+        mToken = token;
+    }
 }
