@@ -14,6 +14,8 @@ class GarminMetarView extends WatchUi.View {
     hidden var mStation = "EGWU";
     hidden var mIsShowingTaf = false;
     hidden var mScrollY = 0;
+    hidden var mFlightRules = null;
+    hidden var mProfile as LayoutProfile or Null = null;
 
     function initialize() {
         View.initialize();
@@ -21,6 +23,8 @@ class GarminMetarView extends WatchUi.View {
 
     // Load your resources here
     function onLayout(dc) {
+        mProfile = new LayoutProfile(dc, System.getDeviceSettings());
+
         // Load settings
         mToken = Application.Properties.getValue("AvwxToken");
         var defaultStation = Application.Properties.getValue("TargetStation");
@@ -42,23 +46,23 @@ class GarminMetarView extends WatchUi.View {
         mTextAreaMetar = new WatchUi.TextArea({
             :text => mMetarCode,
             :color => Graphics.COLOR_WHITE,
-            :font => Graphics.FONT_XTINY,
-            :locX => 0,
-            :locY => 0,
-            :width => dc.getWidth(),
-            :height => dc.getHeight(),
-            :justification => Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
+            :font => mProfile.font,
+            :locX => mProfile.contentX,
+            :locY => mProfile.contentY,
+            :width => mProfile.contentWidth,
+            :height => mProfile.contentHeight,
+            :justification => mProfile.justification
         });
 
         mTextAreaTaf = new WatchUi.TextArea({
             :text => mMetarCode,
             :color => Graphics.COLOR_WHITE,
-            :font => Graphics.FONT_XTINY,
-            :locX => 0,
-            :locY => dc.getHeight() / 2,
-            :width => dc.getWidth(),
+            :font => mProfile.font,
+            :locX => mProfile.contentX,
+            :locY => mProfile.tafBaseY,
+            :width => mProfile.contentWidth,
             :height => 2000,
-            :justification => Graphics.TEXT_JUSTIFY_CENTER
+            :justification => mProfile.tafJustification
         });
 
         if (mIsShowingTaf) {
@@ -86,6 +90,7 @@ class GarminMetarView extends WatchUi.View {
     
     function setStation(station) {
         mStation = station;
+        mFlightRules = null;
         mScrollY = 0;
         if (mIsShowingTaf) {
             mMetarCode = "Loading TAF: " + station + "...";
@@ -127,18 +132,22 @@ class GarminMetarView extends WatchUi.View {
 
     // Update the view
     function onUpdate(dc) {
-        if (mTextAreaMetar != null && mTextAreaTaf != null) {
+        if (mProfile != null && mTextAreaMetar != null && mTextAreaTaf != null) {
             if (mIsShowingTaf) {
                 mTextAreaTaf.setText(mMetarCode);
-                mTextAreaTaf.locY = (dc.getHeight() / 2) + mScrollY;
+                mTextAreaTaf.locY = mProfile.tafBaseY + mScrollY;
             } else {
                 mTextAreaMetar.setText(mMetarCode);
-                mTextAreaMetar.locY = mScrollY;
+                mTextAreaMetar.locY = mProfile.contentY + mScrollY;
             }
         }
 
         // Call the parent onUpdate function to redraw the layout
         View.onUpdate(dc);
+
+        if (mProfile != null) {
+            mProfile.drawHeader(dc, mStation, mFlightRules, mIsShowingTaf);
+        }
     }
 
     function isShowingTaf() {
@@ -156,6 +165,17 @@ class GarminMetarView extends WatchUi.View {
              mMetarCode = "Set Token in App Settings";
              WatchUi.requestUpdate();
              return;
+        }
+
+        // Mock data provider for offline testing and deterministic visual verification
+        if (mToken.find("MOCK") == 0) {
+            var mockData = MockDataProvider.getMockPayload(mToken, mStation, mIsShowingTaf);
+            if (mockData.hasKey("status") && mockData["status"] != 200) {
+                onReceive(mockData["status"], mockData);
+            } else {
+                onReceive(200, mockData);
+            }
+            return;
         }
 
         var url = "https://avwx.rest/api/metar/" + mStation;
@@ -183,12 +203,22 @@ class GarminMetarView extends WatchUi.View {
        System.println("Data: " + data);
        
        if (responseCode == 200) {
-           if (data instanceof Dictionary && data.hasKey("raw")) {
-               mMetarCode = data["raw"];
+           if (data instanceof Dictionary) {
+               if (data.hasKey("raw")) {
+                   mMetarCode = data["raw"];
+               } else {
+                   mMetarCode = "Bad Format";
+               }
+               if (data.hasKey("flight_rules") && data["flight_rules"] != null) {
+                   mFlightRules = data["flight_rules"];
+               } else {
+                   mFlightRules = null;
+               }
            } else {
                mMetarCode = "Bad Format";
            }
        } else {
+           mFlightRules = null;
            mMetarCode = "Error: " + responseCode;
            if (responseCode == 401 || responseCode == 403) {
                mMetarCode += "\nCheck App Settings";

@@ -7,10 +7,12 @@
 import ctypes
 import os
 import socket
+import struct
 import subprocess
 import threading
 import time
 from pathlib import Path
+from typing import Annotated
 from PIL import Image
 import typer
 
@@ -41,6 +43,59 @@ def find_sdk_bin(custom_sdk: Path | None = None) -> Path:
         raise FileNotFoundError(f"No Connect IQ SDK found in {sdks_dir}")
 
     return sdks[0] / "bin"
+
+
+def encode_ciq_settings(settings: dict) -> bytes:
+    """Encode app settings into Garmin Connect IQ binary .SET format."""
+    body = bytearray()
+    entries = []
+    for k, v in settings.items():
+        k_offset = len(body)
+        k_bytes = k.encode("ascii") + b"\x00"
+        body += struct.pack(">H", len(k_bytes)) + k_bytes
+
+        if isinstance(v, str):
+            v_offset = len(body)
+            v_bytes = v.encode("ascii") + b"\x00"
+            body += struct.pack(">H", len(v_bytes)) + v_bytes
+            entries.append((3, k_offset, 3, v_offset))
+        elif isinstance(v, int):
+            entries.append((3, k_offset, 1, v))
+        else:
+            raise ValueError(f"Unsupported type: {type(v)}")
+
+    trailer_body = bytearray()
+    trailer_body += b"\x0b"  # version
+    trailer_body += struct.pack(">I", len(entries))
+    for k_type, k_off, v_type, v_val in entries:
+        trailer_body += struct.pack(">BI", k_type, k_off)
+        trailer_body += struct.pack(">BI", v_type, v_val)
+
+    trailer = b"\xda\x7a\xda\x7a" + struct.pack(">I", len(trailer_body)) + trailer_body
+    header = b"\xab\xcd\xab\xcd" + struct.pack(">I", len(body))
+    return bytes(header + body + trailer)
+
+
+def write_simulator_settings(
+    token: str = "MOCK_VFR",
+    station: str = "EGLL",
+    station_list: str = "EGWU,EGLL,EGUB,EGVO,KJFK,KLAX",
+    auto_exit_seconds: int = 300,
+) -> Path:
+    """Write mock settings to TEST.SET in the Connect IQ simulator temp directory."""
+    settings = {
+        "StationList": station_list,
+        "AutoExitSeconds": auto_exit_seconds,
+        "AvwxToken": token,
+        "TargetStation": station,
+    }
+    encoded = encode_ciq_settings(settings)
+    temp_dir = Path(os.environ.get("TEMP", os.environ.get("TMP", "C:/Temp")))
+    settings_dir = temp_dir / "com.garmin.connectiq" / "GARMIN" / "APPS" / "SETTINGS"
+    settings_dir.mkdir(parents=True, exist_ok=True)
+    target = settings_dir / "TEST.SET"
+    target.write_bytes(encoded)
+    return target
 
 
 class STARTUPINFO(ctypes.Structure):
@@ -131,11 +186,11 @@ def launch_simulator_on_desktop(sdk_bin: Path) -> PROCESS_INFORMATION:
 
 @app.command()
 def build(
-    device: str = typer.Option("venu445mm", help="Target device ID"),
-    output: Path = typer.Option(Path("bin/garminmetar.prg"), help="Output PRG path"),
-    jungle: Path = typer.Option(Path("monkey.jungle"), help="Path to monkey.jungle"),
-    developer_key: Path = typer.Option(Path("developer_key"), help="Path to developer key"),
-    sdk_path: Path | None = typer.Option(None, help="Custom path to Connect IQ SDK"),
+    device: Annotated[str, typer.Option(help="Target device ID")] = "venu445mm",
+    output: Annotated[Path, typer.Option(help="Output PRG path")] = Path("bin/garminmetar.prg"),
+    jungle: Annotated[Path, typer.Option(help="Path to monkey.jungle")] = Path("monkey.jungle"),
+    developer_key: Annotated[Path, typer.Option(help="Path to developer key")] = Path("developer_key"),
+    sdk_path: Annotated[Path | None, typer.Option(help="Custom path to Connect IQ SDK")] = None,
 ) -> None:
     sdk_bin = find_sdk_bin(sdk_path)
     monkeyc = sdk_bin / "monkeyc.bat"
@@ -155,10 +210,10 @@ def build(
 
 @app.command()
 def test(
-    device: str = typer.Option("venu445mm", help="Target device ID"),
-    jungle: Path = typer.Option(Path("monkey.jungle"), help="Path to monkey.jungle"),
-    developer_key: Path = typer.Option(Path("developer_key"), help="Path to developer key"),
-    sdk_path: Path | None = typer.Option(None, help="Custom path to Connect IQ SDK"),
+    device: Annotated[str, typer.Option(help="Target device ID")] = "venu445mm",
+    jungle: Annotated[Path, typer.Option(help="Path to monkey.jungle")] = Path("monkey.jungle"),
+    developer_key: Annotated[Path, typer.Option(help="Path to developer key")] = Path("developer_key"),
+    sdk_path: Annotated[Path | None, typer.Option(help="Custom path to Connect IQ SDK")] = None,
 ) -> None:
     sdk_bin = find_sdk_bin(sdk_path)
     monkeyc = sdk_bin / "monkeyc.bat"
@@ -196,31 +251,39 @@ def test(
 
 @app.command()
 def capture(
-    device: str = typer.Option("venu445mm", help="Target device ID"),
-    prg: Path = typer.Option(Path("bin/garminmetar.prg"), help="Path to compiled PRG"),
-    output: Path = typer.Option(Path("media/watch_face.png"), help="Output image file path"),
-    delay: float = typer.Option(5.0, help="Seconds to wait before capturing"),
-    crop: bool = typer.Option(True, help="Crop to active watch display"),
-    sdk_path: Path | None = typer.Option(None, help="Custom path to Connect IQ SDK"),
+    device: Annotated[str, typer.Option(help="Target device ID")] = "venu445mm",
+    prg: Annotated[Path | None, typer.Option(help="Path to compiled PRG (builds automatically if not specified)")] = None,
+    output: Annotated[Path, typer.Option(help="Output image file path")] = Path("media/watch_face.png"),
+    delay: Annotated[float, typer.Option(help="Seconds to wait before capturing")] = 3.5,
+    crop: Annotated[bool, typer.Option(help="Crop to active watch display (defaults to full bezel window)")] = False,
+    mock: Annotated[str, typer.Option(help="Mock fixture (MOCK_VFR, MOCK_IFR_LONG, MOCK_MVFR, MOCK_TAF, MOCK_AUTH_ERROR, or empty for live API)")] = "MOCK_VFR",
+    station: Annotated[str, typer.Option(help="Station code for mock/test")] = "EGLL",
+    sdk_path: Annotated[Path | None, typer.Option(help="Custom path to Connect IQ SDK")] = None,
 ) -> None:
     sdk_bin = find_sdk_bin(sdk_path)
     shell_exe = sdk_bin / "shell.exe"
     monkeybrains_jar = sdk_bin / "monkeybrains.jar"
 
-    if not prg.is_file():
-        typer.echo(f"PRG not found at {prg}, building first...")
-        build(device=device, output=prg, sdk_path=sdk_path)
+    target_prg = prg
+    if target_prg is None or not target_prg.is_file():
+        target_prg = Path(f"bin/{device}.prg")
+        typer.echo(f"Building {target_prg} for {device}...")
+        build(device=device, output=target_prg, sdk_path=sdk_path)
+
+    if mock:
+        typer.echo(f"Injecting mock settings (token={mock}, station={station})...")
+        write_simulator_settings(token=mock, station=station)
 
     typer.echo("Starting Connect IQ simulator...")
     pi = launch_simulator_on_desktop(sdk_bin)
     sim_pid = pi.dwProcessId
 
-    typer.echo(f"Deploying {prg} to {device} in simulator...")
+    typer.echo(f"Deploying {target_prg} to {device} in simulator...")
     deploy_cmd = [
         "java",
         "-classpath", str(monkeybrains_jar),
         "com.garmin.monkeybrains.monkeydodeux.MonkeyDoDeux",
-        "-f", str(prg.resolve()),
+        "-f", str(target_prg.resolve()),
         "-d", device,
         "-s", str(shell_exe),
     ]
@@ -317,13 +380,56 @@ def capture(
 
     output.parent.mkdir(parents=True, exist_ok=True)
     if crop and captured_img.size == (666, 984):
-        # Active round display for Venu 4 45mm simulator window
         final_img = captured_img.crop((108, 283, 558, 733))
     else:
         final_img = captured_img
 
     final_img.save(str(output))
     typer.echo(f"Screenshot saved to {output} (size: {final_img.size[0]}x{final_img.size[1]})")
+
+
+@app.command()
+def matrix(
+    output_dir: Annotated[Path, typer.Option(help="Output directory for matrix screenshots")] = Path("media/matrix"),
+    sdk_path: Annotated[Path | None, typer.Option(help="Custom path to Connect IQ SDK")] = None,
+) -> None:
+    """Run visual test matrix across all key device archetypes and mock scenarios."""
+    test_devices = [
+        ("instinct3solar45mm", "Semi-Octagon (Instinct 3 Solar)"),
+        ("venu445mm", "Round AMOLED (Venu 4 45mm)"),
+        ("fenix7", "Round MIP (Fenix 7)"),
+        ("venusq2", "Rectangle AMOLED Watch (Venu Sq 2)"),
+        ("edge840", "Rectangle Bike Computer (Edge 840)"),
+    ]
+
+    mock_scenarios = [
+        ("MOCK_VFR", "EGLL", "Standard VFR"),
+        ("MOCK_IFR_LONG", "KJFK", "Long IFR with Remarks"),
+    ]
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results = []
+
+    for dev_id, dev_desc in test_devices:
+        prg_path = Path(f"bin/{dev_id}.prg")
+        build(device=dev_id, output=prg_path, sdk_path=sdk_path)
+
+        for mock_id, station, mock_desc in mock_scenarios:
+            img_path = output_dir / f"{dev_id}_{mock_id.lower()}.png"
+            typer.echo(f"\n--- Testing {dev_desc} with {mock_desc} ---")
+            capture(
+                device=dev_id,
+                prg=prg_path,
+                output=img_path,
+                delay=3.0,
+                crop=False,
+                mock=mock_id,
+                station=station,
+                sdk_path=sdk_path,
+            )
+            results.append((dev_id, dev_desc, mock_id, mock_desc, img_path))
+
+    typer.echo(f"\nMatrix capture complete! {len(results)} screenshots generated in {output_dir}")
 
 
 if __name__ == "__main__":
