@@ -25,5 +25,8 @@ Rules:
 
 ## Learnings
 
+### 2026-09-27 - Monkey C WatchUi event instantiation restriction in tests
+Connect IQ `WatchUi.KeyEvent`, `SwipeEvent`, and `DragEvent` cannot be instantiated in user Monkey C code. Passing mock/fake event objects to `onKey`, `onSwipe`, or `onDrag` triggers compiler error `Invalid '$.Toybox.Lang.Object' passed as parameter 1 of type '$.Toybox.WatchUi.*Event'`. Fixed by extracting semantic delegate handler methods (`handleKey(key)`, `handleSwipe(dir)`, `handleDrag(type, coord)`) that accept SDK enum constants directly. Commit: `e973caf`.
+
 ### 2026-09-27 - Instinct 3 subscreen cutout layout overlap
 On semi-octagon Instinct watches, the physical circular subscreen cutout sits at the top right of the display. Drawing text into standard layout coordinates caused characters to be cut off or obscured by the subscreen. Fixed by introducing `LayoutProfile` archetypes where semi-octagon layouts restrict body text to `y >= 68` and allocate the circular subscreen specifically for the flight rule indicator (VFR/IFR/LIFR/MVFR). Commit: `78362fe`.
