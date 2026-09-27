@@ -67,4 +67,9 @@ developer_key
 *.iq
 
 # Agent files
-.agents/
+.agents/
+
+# Media & simulator outputs (keep only readme asset)
+media/*
+!media/watch_simulator_output_small.png
+
