@@ -65,3 +65,6 @@ resources/secrets/secrets.xml
 # App export
 developer_key
 *.iq
+
+# Agent files
+.agents/
