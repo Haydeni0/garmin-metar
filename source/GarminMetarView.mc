@@ -16,9 +16,22 @@ class GarminMetarView extends WatchUi.View {
     hidden var mScrollY = 0;
     hidden var mFlightRules = null;
     hidden var mProfile as LayoutProfile or Null = null;
+    hidden var mNearbyService as NearbyAirportsService or Null = null;
+    hidden var mIsLocatingClosest as Boolean = false;
 
     function initialize() {
         View.initialize();
+        mToken = Application.Properties.getValue("AvwxToken");
+        loadStationFromSettings();
+    }
+
+    hidden function loadStationFromSettings() as Void {
+        var defaultStation = Application.Properties.getValue("TargetStation");
+        if (defaultStation != null && defaultStation instanceof String && !defaultStation.equals("")) {
+            mStation = defaultStation;
+        } else {
+            mStation = "";
+        }
     }
 
     // Load your resources here
@@ -27,20 +40,12 @@ class GarminMetarView extends WatchUi.View {
 
         // Load settings
         mToken = Application.Properties.getValue("AvwxToken");
-        var defaultStation = Application.Properties.getValue("TargetStation");
-        
-        if (defaultStation != null && !defaultStation.equals("")) {
-             // Only set mStation on startup or if specifically needed, 
-             // but usually we want to respect the user's last selection or the default.
-             // For now, let's respect the property if the memory is empty.
-             if (mStation.equals("EGWU") && !defaultStation.equals("EGWU")) {
-                 mStation = defaultStation;
-                 mMetarCode = "Loading...";
-             }
-        }
+        loadStationFromSettings();
         
         if (mToken == null || mToken.equals("YOUR_TOKEN_HERE") || mToken.equals("")) {
              mMetarCode = "Set Token in App Settings";
+        } else if (mStation.equals("")) {
+             mMetarCode = "Locating closest airport...";
         }
 
         mTextAreaMetar = new WatchUi.TextArea({
@@ -75,8 +80,7 @@ class GarminMetarView extends WatchUi.View {
     // Helper to refresh data when settings change
     function updateFromSettings() {
         mToken = Application.Properties.getValue("AvwxToken");
-        // We might want to update the station too if the user changed the default
-        // But let's prioritize the token update for now
+        loadStationFromSettings();
         makeRequest();
     }
 
@@ -103,7 +107,9 @@ class GarminMetarView extends WatchUi.View {
     function toggleTaf() {
         mIsShowingTaf = !mIsShowingTaf;
         mScrollY = 0;
-        if (mIsShowingTaf) {
+        if (mStation.equals("")) {
+            mMetarCode = "Locating closest airport...";
+        } else if (mIsShowingTaf) {
             mMetarCode = "Loading TAF: " + mStation + "...";
             if (mTextAreaTaf != null) {
                 setLayout([ mTextAreaTaf ]);
@@ -158,6 +164,10 @@ class GarminMetarView extends WatchUi.View {
     // state of this View here. This includes freeing resources from
     // memory.
     function onHide() {
+        if (mNearbyService != null && mIsLocatingClosest) {
+            mNearbyService.cancel();
+            mIsLocatingClosest = false;
+        }
     }
 
     function makeRequest() {
@@ -165,6 +175,15 @@ class GarminMetarView extends WatchUi.View {
              mMetarCode = "Set Token in App Settings";
              WatchUi.requestUpdate();
              return;
+        }
+
+        // If station is not set, automatically locate closest airport via GPS
+        if (mStation == null || mStation.equals("")) {
+            mFlightRules = null;
+            mMetarCode = "Locating closest airport...";
+            WatchUi.requestUpdate();
+            locateClosestAirport();
+            return;
         }
 
         // Mock data provider for offline testing and deterministic visual verification
@@ -245,5 +264,37 @@ class GarminMetarView extends WatchUi.View {
 
     function setToken(token as String) as Void {
         mToken = token;
+    }
+
+    function locateClosestAirport() as Void {
+        if (mNearbyService == null) {
+            mNearbyService = new NearbyAirportsService();
+        }
+        mIsLocatingClosest = true;
+        mNearbyService.searchNearby(method(:onClosestAirportResult));
+    }
+
+    function onClosestAirportResult(success as Boolean, data as Object) as Void {
+        mIsLocatingClosest = false;
+        // If user already selected a station while search was in flight, do not override
+        if (mStation != null && !mStation.equals("")) {
+            return;
+        }
+        if (success && data instanceof Array && (data as Array).size() > 0) {
+            var airports = data as Array<Dictionary>;
+            var closest = airports[0];
+            var icao = closest[:icao] as String;
+            setStation(icao);
+            makeRequest();
+        } else {
+            mStation = "";
+            mFlightRules = null;
+            mMetarCode = "No GPS Fix\nSelect Station";
+            WatchUi.requestUpdate();
+        }
+    }
+
+    function isLocatingClosest() as Boolean {
+        return mIsLocatingClosest;
     }
 }

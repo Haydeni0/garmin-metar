@@ -5,6 +5,6 @@
     <string id="Error">Error</string>
     <string id="AppVersionTitle">Version</string>
     <string id="AvwxTokenTitle">AVWX API Token</string>
-    <string id="TargetStationTitle">Default Station</string>
+    <string id="TargetStationTitle">Default Station (blank for closest)</string>
     <string id="StationListTitle">Station List (comma separated)</string>
 </resources>

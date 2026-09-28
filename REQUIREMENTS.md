@@ -41,9 +41,9 @@ Living specification defining user experience, device behaviors, settings, and c
 
 ## 3. Station Management
 
-### [REQ-STN-01] Default Startup Station
-- **Statement**: Active station on initial launch MUST load from the `TargetStation` property (default `EGWU`).
-- **Verification**: `AppLifecycleTests.testInitialViewContract`
+### [REQ-STN-01] Default Startup Station & Closest Fallback
+- **Statement**: Active station on initial launch MUST load from the `TargetStation` property (default `EGWU`). If `TargetStation` is unset or blank, the app MUST automatically query GPS via `NearbyAirportsService` and load the closest reporting airport. If GPS fix is unavailable or times out, the view MUST display `"No GPS Fix\nSelect Station"`. Manual station selection while locating MUST be preserved.
+- **Verification**: `AppLifecycleTests.testInitialViewContract`, `StationTests.testUnsetTargetStationTriggersClosestAirport`, `StationTests.testClosestAirportFailureShowsFallback`, `StationTests.testUnsetTargetStationPropertyDefaultsToClosest`, `StationTests.testManualSelectionDuringLocatingIsNotOverwritten`
 
 ### [REQ-STN-02] Station Selection Menu
 - **Statement**: Station selection menu MUST open via `onMenu()` (Menu key on 5-button devices) or screen tap (`onTap()` on touchscreens). The top item MUST be `"Nearby Airports"`, followed by configured stations from `StationList`.
@@ -130,11 +130,11 @@ Living specification defining user experience, device behaviors, settings, and c
 ### [REQ-CFG-01] Persistent App Properties
 - **Statement**: App MUST support persistent configuration properties:
   - `AvwxToken` (string, default `"YOUR_TOKEN_HERE"`)
-  - `TargetStation` (string, default `"EGWU"`)
+  - `TargetStation` (string, default `"EGWU"`, title `"Default Station (blank for closest)"`)
   - `StationList` (string, default `"EGWU,EGLL,EGUB,EGVO,KJFK,KLAX"`)
   - `AutoExitSeconds` (number, default `30`)
   - `SimulatedGps` (string, default `""`)
-- **Verification**: `ViewDataTests.testMissingTokenPrompt`, `StationTests.testParseSimpleList`, `AppLifecycleTests.testTimerStartsByDefault`
+- **Verification**: `ViewDataTests.testMissingTokenPrompt`, `StationTests.testParseSimpleList`, `StationTests.testUnsetTargetStationPropertyDefaultsToClosest`, `AppLifecycleTests.testTimerStartsByDefault`
 
 ## 9. Developer Tooling & Environment
 

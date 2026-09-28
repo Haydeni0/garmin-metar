@@ -81,6 +81,12 @@ class NearbyAirportsService {
         }
     }
 
+    function cancel() as Void {
+        stopGpsListening();
+        mIsSearching = false;
+        mCallback = null;
+    }
+
     function onGpsTimeout() as Void {
         stopGpsListening();
         notifyError("No GPS Fix");
