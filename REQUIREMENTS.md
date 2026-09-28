@@ -29,6 +29,8 @@ Garmin Connect IQ watch app displaying real-time aviation weather reports (METAR
 - **Nearby Airports Discovery**:
   - Selecting `"Nearby Airports"` pushes a nested `Menu2` titled `"Nearby Airports"`.
   - Coordinates acquired via `Toybox.Position` (`Positioning` permission).
+  - Coordinate validation: Acquired coordinates must be within valid geographic bounds (latitude [-90.0, 90.0], longitude [-180.0, 180.0]). Uninitialized Garmin sentinel coordinates `[180.0, 180.0]` are strictly rejected.
+  - GPS acquisition timeout: Service listens for position updates with an 8-second timeout. If no valid fix is acquired within 8 seconds, listening stops and UI transitions to error state.
   - Fetches 5 closest reporting stations via `https://avwx.rest/api/station/near/{lat},{lon}?n=5`.
   - Populates menu with 5 nearest airport items displaying ICAO and distance/name sublabels.
   - Fallback / Error states: Displays `"No GPS Fix"` or error description with a select-to-retry action item.
@@ -65,3 +67,10 @@ Configured via Garmin Connect Mobile or Garmin Express:
 2. `TargetStation` (AlphaNumeric, string): Default airport ICAO code. Default: `"EGWU"`.
 3. `StationList` (AlphaNumeric, string): Comma-separated list of airport ICAO codes. Default: `"EGWU,EGLL,EGUB,EGVO,KJFK,KLAX"`.
 4. `AutoExitSeconds` (List, number): Inactivity auto-exit timer duration (30, 60, 120, 0). Default: `30`.
+5. `SimulatedGps` (AlphaNumeric, string): Optional internal property for simulated GPS coordinates (`lat,lon`). Default: `""`.
+
+## 9. Local Development & Simulator Tooling
+- **Command Runner**: Developer workflow centralized in `scripts/dev.py` (`test`, `build`, `capture`, `matrix`, `sync-settings`).
+- **Local Environment Sync**: Untracked `.env` configuration (templated from `.env.example`) synced into binary Connect IQ simulator settings (`GARMINMETAR.SET` and `TEST.SET`) via `preLaunchTask` in `.vscode/launch.json`. Supports `AVWX_TOKEN`, `TARGET_STATION`, `STATION_LIST`, `AUTO_EXIT_SECONDS`, and `SIMULATED_GPS`.
+
+

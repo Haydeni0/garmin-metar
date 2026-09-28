@@ -5,13 +5,15 @@
             "name": "Simulate Instinct 3 Solar",
             "type": "monkeyc",
             "request": "launch",
-            "device": "instinct3solar45mm"
+            "device": "instinct3solar45mm",
+            "preLaunchTask": "sync-settings"
         },
         {
             "name": "Simulate App (Venu 4)",
             "type": "monkeyc",
             "request": "launch",
-            "device": "venu445mm"
+            "device": "venu445mm",
+            "preLaunchTask": "sync-settings"
         }
     ]
 }

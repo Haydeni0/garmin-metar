@@ -81,21 +81,39 @@ def write_simulator_settings(
     station: str = "EGLL",
     station_list: str = "EGWU,EGLL,EGUB,EGVO,KJFK,KLAX",
     auto_exit_seconds: int = 300,
+    target_name: str = "TEST.SET",
+    simulated_gps: str = "",
 ) -> Path:
-    """Write mock settings to TEST.SET in the Connect IQ simulator temp directory."""
+    """Write mock settings to Connect IQ simulator settings directory."""
     settings = {
         "StationList": station_list,
         "AutoExitSeconds": auto_exit_seconds,
         "AvwxToken": token,
         "TargetStation": station,
+        "SimulatedGps": simulated_gps,
     }
     encoded = encode_ciq_settings(settings)
     temp_dir = Path(os.environ.get("TEMP", os.environ.get("TMP", "C:/Temp")))
     settings_dir = temp_dir / "com.garmin.connectiq" / "GARMIN" / "APPS" / "SETTINGS"
     settings_dir.mkdir(parents=True, exist_ok=True)
-    target = settings_dir / "TEST.SET"
+    target = settings_dir / target_name
     target.write_bytes(encoded)
     return target
+
+
+def load_env_file(env_path: Path) -> dict[str, str]:
+    """Parse key=value pairs from a .env file."""
+    if not env_path.is_file():
+        return {}
+    env_vars: dict[str, str] = {}
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            key, val = line.split("=", 1)
+            env_vars[key.strip()] = val.strip().strip("'\"")
+    return env_vars
 
 
 class STARTUPINFO(ctypes.Structure):
@@ -430,6 +448,45 @@ def matrix(
             results.append((dev_id, dev_desc, mock_id, mock_desc, img_path))
 
     typer.echo(f"\nMatrix capture complete! {len(results)} screenshots generated in {output_dir}")
+
+
+@app.command("sync-settings")
+def sync_settings(
+    env_file: Annotated[Path, typer.Option(help="Path to .env file")] = Path(".env"),
+    app_name: Annotated[str, typer.Option(help="Target app settings prefix")] = "GARMINMETAR",
+) -> None:
+    """Sync .env variables to Connect IQ simulator binary settings."""
+    env_vars = load_env_file(env_file)
+    token = env_vars.get("AVWX_TOKEN") or os.environ.get("AVWX_TOKEN", "YOUR_TOKEN_HERE")
+    station = env_vars.get("TARGET_STATION") or os.environ.get("TARGET_STATION", "EGWU")
+    station_list = env_vars.get("STATION_LIST") or os.environ.get("STATION_LIST", "EGWU,EGLL,EGUB,EGVO,KJFK,KLAX")
+    raw_auto_exit = env_vars.get("AUTO_EXIT_SECONDS") or os.environ.get("AUTO_EXIT_SECONDS", "30")
+    try:
+        auto_exit = int(raw_auto_exit)
+    except ValueError:
+        auto_exit = 30
+    sim_gps = env_vars.get("SIMULATED_GPS") or os.environ.get("SIMULATED_GPS", "")
+
+    write_simulator_settings(
+        token=token,
+        station=station,
+        station_list=station_list,
+        auto_exit_seconds=auto_exit,
+        target_name=f"{app_name}.SET",
+        simulated_gps=sim_gps,
+    )
+    write_simulator_settings(
+        token=token,
+        station=station,
+        station_list=station_list,
+        auto_exit_seconds=auto_exit,
+        target_name="TEST.SET",
+        simulated_gps=sim_gps,
+    )
+    source_desc = f"from {env_file}" if env_file.is_file() else "using defaults (no .env found)"
+    masked_token = (token[:4] + "..." + token[-4:]) if len(token) > 8 and token != "YOUR_TOKEN_HERE" else token
+    gps_info = f", GPS: {sim_gps}" if sim_gps else ""
+    typer.echo(f"Synced simulator settings {source_desc} -> {app_name}.SET & TEST.SET [Station: {station}, Token: {masked_token}{gps_info}]")
 
 
 if __name__ == "__main__":

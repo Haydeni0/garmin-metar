@@ -11,10 +11,10 @@ The command surface is the contract: agents run these and act on the
 result.
 
 ```bash
-uv run scripts/sim_capture.py test                 # unit test suite
-uv run scripts/sim_capture.py build                # compile release IQ package
-uv run scripts/sim_capture.py capture <device_id>  # run simulator and take screenshot
-uv run scripts/sim_capture.py matrix               # test and capture across archetype matrix
+uv run scripts/dev.py test                 # unit test suite
+uv run scripts/dev.py build                # compile release IQ package
+uv run scripts/dev.py capture <device_id>  # run simulator and take screenshot
+uv run scripts/dev.py matrix               # test and capture across archetype matrix
 ```
 
 Run `test` iteratively after code edits. Run `matrix` before release or when
@@ -24,7 +24,7 @@ touching `LayoutProfile` or drawing logic.
 
 - **Instinct cutout**: On semi-octagon watches with subscreen circles, text
   must stay below cutout (`y >= 68`) and subscreen shows flight category.
-- **Simulator capture**: Visual tests via `scripts/sim_capture.py` require an
+- **Simulator capture**: Visual tests via `scripts/dev.py` require an
   active interactive Windows desktop session (`WinSta0\Default`) for Win32
   `PrintWindow`.
 - **Offline mock data**: Use `MOCK_*` station tokens for deterministic rendering

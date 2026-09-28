@@ -1,5 +1,6 @@
 using Toybox.Test;
 using Toybox.WatchUi;
+using Toybox.Position;
 import Toybox.Lang;
 
 module NearbyAirportsTests {
@@ -190,6 +191,148 @@ module NearbyAirportsTests {
 
         if (!view.getStation().equals(initialStation)) {
             logger.debug("Selecting ACTION_NEARBY must not change view station");
+            return false;
+        }
+
+        return true;
+    }
+
+    (:test)
+    function testCoordinateValidation(logger as Test.Logger) as Boolean {
+        // Valid coordinates
+        if (!NearbyAirportsService.isValidCoordinate(51.5074, -0.1278)) {
+            logger.debug("Valid London coordinate rejected");
+            return false;
+        }
+        if (!NearbyAirportsService.isValidCoordinate(-33.8688, 151.2093)) {
+            logger.debug("Valid Sydney coordinate rejected");
+            return false;
+        }
+
+        // Invalid: Garmin uninitialized fix sentinel [180.0, 180.0]
+        if (NearbyAirportsService.isValidCoordinate(180.0, 180.0)) {
+            logger.debug("Garmin no-fix sentinel 180,180 should be rejected");
+            return false;
+        }
+
+        // Invalid: Latitude bounds (> 90 or < -90)
+        if (NearbyAirportsService.isValidCoordinate(90.1, 0.0) || NearbyAirportsService.isValidCoordinate(-90.1, 0.0)) {
+            logger.debug("Out of range latitude should be rejected");
+            return false;
+        }
+
+        // Invalid: Longitude bounds (> 180 or < -180)
+        if (NearbyAirportsService.isValidCoordinate(0.0, 180.1) || NearbyAirportsService.isValidCoordinate(0.0, -180.1)) {
+            logger.debug("Out of range longitude should be rejected");
+            return false;
+        }
+
+        return true;
+    }
+
+    (:test)
+    function testSimulatorUninitializedLocationRejected(logger as Test.Logger) as Boolean {
+        var info = Position.getInfo();
+        // Simulator starts with no GPS fix (QUALITY_NOT_AVAILABLE or [180, 180])
+        var valid = NearbyAirportsService.isValidLocation(info);
+        if (valid) {
+            logger.debug("Default uninitialized simulator position should not be treated as valid GPS fix");
+            return false;
+        }
+        return true;
+    }
+
+    class MockNearbyCallbackReceiver {
+        public var mSuccess as Boolean = false;
+        public var mData as Object or Null = null;
+        public var mCallCount as Number = 0;
+
+        function onResult(success as Boolean, data as Object) as Void {
+            mSuccess = success;
+            mData = data;
+            mCallCount++;
+        }
+    }
+
+    (:test)
+    function testGpsTimeoutTriggersError(logger as Test.Logger) as Boolean {
+        var service = new NearbyAirportsService();
+        var receiver = new MockNearbyCallbackReceiver();
+        service.searchNearby(receiver.method(:onResult));
+
+        // Trigger timeout handler
+        service.onGpsTimeout();
+
+        if (receiver.mCallCount != 1) {
+            logger.debug("Expected 1 callback, got: " + receiver.mCallCount);
+            return false;
+        }
+        if (receiver.mSuccess != false) {
+            logger.debug("Expected failure on GPS timeout");
+            return false;
+        }
+        if (receiver.mData == null || !(receiver.mData as String).equals("No GPS Fix")) {
+            logger.debug("Expected 'No GPS Fix', got: " + receiver.mData);
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testFetchFromAvwxRejectsSentinelCoordinates(logger as Test.Logger) as Boolean {
+        var service = new NearbyAirportsService();
+        var receiver = new MockNearbyCallbackReceiver();
+        service.searchNearby(receiver.method(:onResult));
+
+        // Call fetchFromAvwx with Garmin uninitialized sentinel 180, 180
+        service.fetchFromAvwx(180.0, 180.0);
+
+        if (receiver.mSuccess != false || receiver.mData == null || !(receiver.mData as String).equals("No GPS Fix")) {
+            logger.debug("Expected 'No GPS Fix' for sentinel coordinates 180,180, got: " + receiver.mData);
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testFetchFromAvwxRejectsOutOfBoundsCoordinates(logger as Test.Logger) as Boolean {
+        var service = new NearbyAirportsService();
+        var receiver = new MockNearbyCallbackReceiver();
+        service.searchNearby(receiver.method(:onResult));
+
+        // Call fetchFromAvwx with invalid latitude 95.0
+        service.fetchFromAvwx(95.0, 0.0);
+
+        if (receiver.mSuccess != false || receiver.mData == null || !(receiver.mData as String).equals("No GPS Fix")) {
+            logger.debug("Expected 'No GPS Fix' for out of bounds latitude, got: " + receiver.mData);
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testParseCoordinates(logger as Test.Logger) as Boolean {
+        var parsed = NearbyAirportsService.parseCoordinates("51.5074,-0.1278");
+        if (parsed == null || parsed.size() != 2) {
+            logger.debug("Failed to parse valid coordinates");
+            return false;
+        }
+        if (parsed[0] < 51.50 || parsed[0] > 51.51 || parsed[1] > -0.12 || parsed[1] < -0.13) {
+            logger.debug("Parsed values incorrect: " + parsed);
+            return false;
+        }
+
+        // Invalid strings
+        if (NearbyAirportsService.parseCoordinates("") != null) {
+            logger.debug("Empty string should return null");
+            return false;
+        }
+        if (NearbyAirportsService.parseCoordinates("invalid") != null) {
+            logger.debug("No comma string should return null");
+            return false;
+        }
+        if (NearbyAirportsService.parseCoordinates("abc,def") != null) {
+            logger.debug("Non-numeric string should return null");
             return false;
         }
 

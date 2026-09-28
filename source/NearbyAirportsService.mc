@@ -2,15 +2,18 @@ using Toybox.System;
 using Toybox.Position;
 using Toybox.Communications;
 using Toybox.Application;
+using Toybox.Timer;
 import Toybox.Lang;
 
 class NearbyAirportsService {
 
     hidden var mCallback as (Method(success as Boolean, data as Object) as Void) or Null = null;
     hidden var mIsSearching as Boolean = false;
+    hidden var mGpsTimer as Timer.Timer or Null = null;
 
     function initialize() {
         mCallback = null;
+        mGpsTimer = null;
     }
 
     function searchNearby(callback as Method(success as Boolean, data as Object) as Void) as Void {
@@ -35,30 +38,58 @@ class NearbyAirportsService {
         }
 
         var posInfo = Position.getInfo();
-        if (posInfo != null && posInfo.position != null) {
+        if (isValidLocation(posInfo)) {
             onPositionAcquired(posInfo.position);
             return;
         }
 
-        // Try one-shot position acquisition
+        // Check for simulated GPS property (configured via .env for simulator debugging)
+        var simGps = Application.Properties.getValue("SimulatedGps");
+        if (simGps != null && simGps instanceof String && !simGps.equals("")) {
+            var coords = parseCoordinates(simGps as String);
+            if (coords != null && isValidCoordinate(coords[0], coords[1])) {
+                fetchFromAvwx(coords[0], coords[1]);
+                return;
+            }
+        }
+
+        startGpsListening();
+    }
+
+    hidden function startGpsListening() as Void {
+        stopGpsListening();
+        mGpsTimer = new Timer.Timer();
+        mGpsTimer.start(method(:onGpsTimeout), 8000, false);
+
         try {
-            Position.enableLocationEvents(Position.LOCATION_ONE_SHOT, method(:onPosition));
+            Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
         } catch (e) {
+            stopGpsListening();
             notifyError("No GPS Fix");
         }
     }
 
-    function onPosition(info as Position.Info) as Void {
+    hidden function stopGpsListening() as Void {
+        if (mGpsTimer != null) {
+            mGpsTimer.stop();
+            mGpsTimer = null;
+        }
         try {
             Position.enableLocationEvents(Position.LOCATION_DISABLE, null);
         } catch (e) {
-            // Ignore failure disabling location events
+            // Ignore error disabling location events
         }
+    }
 
-        if (info != null && info.position != null) {
+    function onGpsTimeout() as Void {
+        stopGpsListening();
+        notifyError("No GPS Fix");
+    }
+
+    function onPosition(info as Position.Info) as Void {
+        if (isValidLocation(info)) {
+            stopGpsListening();
             onPositionAcquired(info.position);
-        } else {
-            notifyError("No GPS Fix");
         }
     }
 
@@ -70,6 +101,11 @@ class NearbyAirportsService {
     }
 
     function fetchFromAvwx(lat as Float or Double, lon as Float or Double) as Void {
+        if (!isValidCoordinate(lat, lon)) {
+            notifyError("No GPS Fix");
+            return;
+        }
+
         var token = Application.Properties.getValue("AvwxToken");
         if (token == null || token.equals("") || token.equals("YOUR_TOKEN_HERE")) {
             notifyError("Token Missing");
@@ -87,11 +123,14 @@ class NearbyAirportsService {
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
         };
 
+        System.println("Nearby Request to: " + url);
         Communications.makeWebRequest(url, params, options, method(:onReceiveNearby));
     }
 
     function onReceiveNearby(responseCode as Number, data as Dictionary or String or Null) as Void {
         mIsSearching = false;
+        System.println("Nearby Response: " + responseCode);
+        System.println("Nearby Data: " + data);
         if (responseCode == 200 && data != null && data instanceof Array) {
             var rawArr = data as Array;
             var airports = parseNearbyResponse(rawArr);
@@ -101,14 +140,52 @@ class NearbyAirportsService {
             } else if (cb != null) {
                 cb.invoke(true, airports);
             }
-        } else if (responseCode == 401) {
-            notifyError("Auth Error 401");
+        } else if (responseCode == 401 || responseCode == 403) {
+            notifyError("Auth Error " + responseCode);
         } else {
             notifyError("Network Error: " + responseCode);
         }
     }
 
+    static function isValidCoordinate(lat as Float or Double, lon as Float or Double) as Boolean {
+        if (lat < -90.0 || lat > 90.0 || lon < -180.0 || lon > 180.0) {
+            return false;
+        }
+        // Garmin sentinel for uninitialized GPS coordinates is [180.0, 180.0]
+        if (lat == 180.0 && lon == 180.0) {
+            return false;
+        }
+        return true;
+    }
+
+    static function isValidLocation(info as Position.Info or Null) as Boolean {
+        if (info == null || info.position == null) {
+            return false;
+        }
+        var deg = info.position.toDegrees();
+        return isValidCoordinate(deg[0], deg[1]);
+    }
+
+    static function parseCoordinates(coordStr as String) as Array<Float> or Null {
+        var commaIdx = coordStr.find(",");
+        if (commaIdx == null || commaIdx <= 0) {
+            return null;
+        }
+        var latStr = coordStr.substring(0, commaIdx);
+        var lonStr = coordStr.substring(commaIdx + 1, coordStr.length());
+        if (latStr == null || lonStr == null) {
+            return null;
+        }
+        var lat = latStr.toFloat();
+        var lon = lonStr.toFloat();
+        if (lat == null || lon == null) {
+            return null;
+        }
+        return [lat, lon] as Array<Float>;
+    }
+
     hidden function notifyError(message as String) as Void {
+        stopGpsListening();
         mIsSearching = false;
         var cb = mCallback;
         if (cb != null) {
