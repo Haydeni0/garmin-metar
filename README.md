@@ -18,13 +18,15 @@ See on the [Garmin app store](https://apps.garmin.com/apps/2261817c-e073-4450-96
 - **Toggle METAR / TAF**: Press **START / GPS** (top-right button).
 - **Open Station Menu**: Press and hold **MENU** (middle-left button, ~1 sec).
   - In Simulator: Right-click MENU, click-and-hold for ~1 sec, or press **`M`** on keyboard.
-  - In Menu: Use **UP / DOWN** buttons to highlight, **START** to select, **BACK** to cancel.
+  - In Menu: Select **Nearby Airports** to discover the 5 nearest reporting airfields via GPS, or choose from configured stations.
+  - Use **UP / DOWN** buttons to highlight, **START** to select, **BACK** to cancel.
 - **Scroll Report Text**: Press **UP** (middle-left short click) or **DOWN** (bottom-left button).
 - **Exit App**: Press **BACK / SET** (bottom-right button).
 
 ### Touchscreen Watches (Venu, Vivoactive)
 - **Toggle METAR / TAF**: Swipe left/right OR press the top button.
 - **Open Station Menu**: Tap the touchscreen OR press and hold the bottom button.
+  - Select **Nearby Airports** for 5 nearest GPS-located airfields, or pick from your saved stations.
 - **Scroll Report Text**: Drag vertically or swipe up/down.
 
 Example output from simulator (and on watch when installed):

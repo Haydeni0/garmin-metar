@@ -118,6 +118,9 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     function pushStationMenu() as Boolean {
         var menu = new WatchUi.Menu2({:title=>"Select Station"});
         
+        // Add Nearby Airports discovery as top action
+        menu.addItem(new WatchUi.MenuItem("Nearby Airports", null, "ACTION_NEARBY", null));
+
         var listStr = Application.Properties.getValue("StationList");
         var stations = [];
         
@@ -160,6 +163,15 @@ class StationMenuDelegate extends WatchUi.Menu2InputDelegate {
     function onSelect(item) {
         Application.getApp().resetTimer();
         var id = item.getId();
+        if (id != null && id.equals("ACTION_NEARBY")) {
+            var nearbyMenu = new WatchUi.Menu2({:title=>"Nearby Airports"});
+            nearbyMenu.addItem(new WatchUi.MenuItem("Searching...", null, "STATUS_SEARCHING", null));
+            var nearbyDelegate = new NearbyMenuDelegate(mView, nearbyMenu);
+            WatchUi.pushView(nearbyMenu, nearbyDelegate, WatchUi.SLIDE_LEFT);
+            nearbyDelegate.startSearch();
+            return;
+        }
+
         mView.setStation(id);
         mView.makeRequest();
         WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
