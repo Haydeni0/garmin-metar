@@ -32,7 +32,7 @@ Garmin Connect IQ watch app displaying real-time aviation weather reports (METAR
   - Coordinate validation: Acquired coordinates must be within valid geographic bounds (latitude [-90.0, 90.0], longitude [-180.0, 180.0]). Uninitialized Garmin sentinel coordinates `[180.0, 180.0]` are strictly rejected.
   - GPS acquisition timeout: Service listens for position updates with an 8-second timeout. If no valid fix is acquired within 8 seconds, listening stops and UI transitions to error state.
   - Fetches 5 closest reporting stations via `https://avwx.rest/api/station/near/{lat},{lon}?n=5`.
-  - Populates menu with 5 nearest airport items displaying ICAO and distance/name sublabels.
+  - Populates menu with 5 nearest airport items displaying ICAO with distance in main label (e.g. `EGLL (4.2nm)`) and airport name in sublabel.
   - Fallback / Error states: Displays `"No GPS Fix"` or error description with a select-to-retry action item.
   - Mock mode: When token begins with `MOCK`, provides 5 deterministic nearby airport fixtures without GPS or network.
   - Selecting a nearby airport sets the active station, triggers weather fetch, and pops menus back to main view.

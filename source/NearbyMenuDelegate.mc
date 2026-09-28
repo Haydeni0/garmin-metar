@@ -36,19 +36,16 @@ class NearbyMenuDelegate extends WatchUi.Menu2InputDelegate {
             for (var i = 0; i < airports.size(); i++) {
                 var ap = airports[i];
                 var icao = ap[:icao] as String;
+                var label = icao;
+                if (ap.hasKey(:distance) && ap[:distance] != null) {
+                    var d = ap[:distance];
+                    label = icao + " (" + d.format("%.1f") + "nm)";
+                }
                 var sublabel = "";
                 if (ap.hasKey(:name) && ap[:name] != null && !ap[:name].equals("")) {
                     sublabel = ap[:name] as String;
                 }
-                if (ap.hasKey(:distance) && ap[:distance] != null) {
-                    var d = ap[:distance];
-                    if (sublabel.length() > 0) {
-                        sublabel = sublabel + " (" + d.format("%.1f") + "nm)";
-                    } else {
-                        sublabel = d.format("%.1f") + " nm";
-                    }
-                }
-                mMenu.addItem(new WatchUi.MenuItem(icao, sublabel, icao, null));
+                mMenu.addItem(new WatchUi.MenuItem(label, sublabel, icao, null));
             }
         } else {
             mLoaded = false;

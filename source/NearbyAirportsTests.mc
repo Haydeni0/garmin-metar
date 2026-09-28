@@ -46,6 +46,34 @@ module NearbyAirportsTests {
     }
 
     (:test)
+    function testParseNearbyResponseNauticalMiles(logger as Test.Logger) as Boolean {
+        // Real AVWX API response structure with nautical_miles key
+        var rawData = [
+            {
+                "nautical_miles" => 18.78,
+                "station" => {
+                    "icao" => "KMLB",
+                    "name" => "Melbourne International Airport"
+                }
+            }
+        ];
+
+        var parsed = NearbyAirportsService.parseNearbyResponse(rawData);
+        if (parsed.size() != 1) {
+            logger.debug("Expected 1 parsed airport, got: " + parsed.size());
+            return false;
+        }
+
+        var first = parsed[0];
+        if (!first[:icao].equals("KMLB") || first[:distance] == null || first[:distance] < 18.7 || first[:distance] > 18.8) {
+            logger.debug("Airport distance parsed incorrectly from nautical_miles: " + first);
+            return false;
+        }
+
+        return true;
+    }
+
+    (:test)
     function testParseNearbyResponseFlat(logger as Test.Logger) as Boolean {
         var rawData = [
             {
@@ -145,8 +173,18 @@ module NearbyAirportsTests {
             return false;
         }
 
-        if (menu.findItemById("EGLL") == -1) {
+        var egllIdx = menu.findItemById("EGLL");
+        if (egllIdx == -1 || egllIdx == null) {
             logger.debug("Expected EGLL item to be in menu");
+            return false;
+        }
+        var egllItem = menu.getItem(egllIdx);
+        if (!egllItem.getLabel().equals("EGLL (4.2nm)")) {
+            logger.debug("Expected label 'EGLL (4.2nm)', got: " + egllItem.getLabel());
+            return false;
+        }
+        if (!egllItem.getSubLabel().equals("Heathrow")) {
+            logger.debug("Expected sublabel 'Heathrow', got: " + egllItem.getSubLabel());
             return false;
         }
 

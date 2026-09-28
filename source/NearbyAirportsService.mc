@@ -222,15 +222,30 @@ class NearbyAirportsService {
                     }
                 }
 
-                if (entryDict.hasKey("distance")) {
+                if (entryDict.hasKey("nautical_miles")) {
+                    dist = entryDict["nautical_miles"];
+                } else if (entryDict.hasKey("distance")) {
                     dist = entryDict["distance"];
+                } else if (entryDict.hasKey("miles")) {
+                    dist = entryDict["miles"];
+                } else if (entryDict.hasKey("station") && entryDict["station"] instanceof Dictionary) {
+                    var stDict = entryDict["station"] as Dictionary;
+                    if (stDict.hasKey("nautical_miles")) {
+                        dist = stDict["nautical_miles"];
+                    } else if (stDict.hasKey("distance")) {
+                        dist = stDict["distance"];
+                    }
+                }
+
+                if (dist != null && dist instanceof String) {
+                    dist = (dist as String).toFloat();
                 }
 
                 if (icao != null && icao instanceof String) {
                     var item = {
                         :icao => icao,
                         :name => name != null ? name : "",
-                        :distance => dist != null ? dist : 0.0
+                        :distance => dist
                     };
                     result.add(item);
                 }
