@@ -8,6 +8,8 @@ class GarminMetarApp extends Application.AppBase {
 
     hidden var mView;
     hidden var mTimer;
+    hidden var mTimerResetCount as Number = 0;
+
     function initialize() {
         AppBase.initialize();
     }
@@ -20,6 +22,7 @@ class GarminMetarApp extends Application.AppBase {
     function onStop(state) {
         if (mTimer != null) {
             mTimer.stop();
+            mTimer = null;
         }
     }
 
@@ -33,8 +36,9 @@ class GarminMetarApp extends Application.AppBase {
     }
     
     function resetTimer() {
+        mTimerResetCount++;
         var seconds = Application.Properties.getValue("AutoExitSeconds");
-        if (seconds == null) { seconds = 60; }
+        if (seconds == null) { seconds = 30; }
         
         // Always stop the current timer if it exists
         if (mTimer != null) {
@@ -54,6 +58,10 @@ class GarminMetarApp extends Application.AppBase {
     
     function hasActiveTimer() as Boolean {
         return mTimer != null;
+    }
+
+    function getTimerResetCount() as Number {
+        return mTimerResetCount;
     }
 
     function getView() {

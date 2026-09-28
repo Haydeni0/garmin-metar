@@ -29,11 +29,11 @@ Living specification defining user experience, device behaviors, settings, and c
 
 ### [REQ-PWR-01] Auto-Exit Inactivity Timer
 - **Statement**: App MUST exit automatically after an inactivity duration specified by `AutoExitSeconds` (default 30 seconds; configurable to 30, 60, 120, or 0 to disable).
-- **Verification**: `AppLifecycleTests.testTimerStartsByDefault`, `AppLifecycleTests.testTimerStopOnAppStop`, `AppLifecycleTests.testSettingsChangedRefreshesTimer`
+- **Verification**: `AppLifecycleTests.testTimerStartsByDefault`, `AppLifecycleTests.testTimerStopOnAppStop`, `AppLifecycleTests.testTimerDisabledWhenZero`, `AppLifecycleTests.testSettingsChangedRefreshesTimer`
 
 ### [REQ-PWR-02] Inactivity Timer Reset
 - **Statement**: Any user interaction (physical key press, screen tap, or drag gesture) MUST reset the inactivity countdown timer.
-- **Verification**: `AppLifecycleTests.testSettingsChangedRefreshesTimer`
+- **Verification**: `AppLifecycleTests.testInteractionResetsTimerOnKey`, `AppLifecycleTests.testInteractionResetsTimerOnTap`, `AppLifecycleTests.testInteractionResetsTimerOnSwipe`, `AppLifecycleTests.testInteractionResetsTimerOnDrag`, `AppLifecycleTests.testInteractionResetsTimerOnSelect`
 
 ### [REQ-PWR-03] Exit Action
 - **Statement**: When the inactivity timer expires, the app MUST call `System.exit()` to terminate and save battery.

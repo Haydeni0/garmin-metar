@@ -1,4 +1,6 @@
 using Toybox.Test;
+using Toybox.WatchUi;
+using Toybox.Application;
 import Toybox.Lang;
 
 module AppLifecycleTests {
@@ -20,7 +22,27 @@ module AppLifecycleTests {
         var app = new GarminMetarApp();
         app.resetTimer();
         app.onStop(null);
-        // Verification: ensure no unhandled exception or crash on stop
+        if (app.hasActiveTimer()) {
+            logger.debug("Expected timer to be inactive after onStop");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testTimerDisabledWhenZero(logger as Test.Logger) as Boolean {
+        var app = new GarminMetarApp();
+        var orig = Application.Properties.getValue("AutoExitSeconds");
+        Application.Properties.setValue("AutoExitSeconds", 0);
+        app.resetTimer();
+
+        var active = app.hasActiveTimer();
+        Application.Properties.setValue("AutoExitSeconds", orig != null ? orig : 30);
+
+        if (active) {
+            logger.debug("Expected timer to be disabled when AutoExitSeconds is 0");
+            return false;
+        }
         return true;
     }
 
@@ -59,4 +81,80 @@ module AppLifecycleTests {
         }
         return true;
     }
+
+    (:test)
+    function testInteractionResetsTimerOnKey(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+        var app = Application.getApp() as GarminMetarApp;
+        var countBefore = app.getTimerResetCount();
+
+        delegate.handleKey(WatchUi.KEY_DOWN);
+        if (app.getTimerResetCount() <= countBefore) {
+            logger.debug("Expected handleKey to reset timer");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testInteractionResetsTimerOnTap(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+        var app = Application.getApp() as GarminMetarApp;
+        var countBefore = app.getTimerResetCount();
+
+        delegate.handleTap();
+        if (app.getTimerResetCount() <= countBefore) {
+            logger.debug("Expected handleTap to reset timer");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testInteractionResetsTimerOnSwipe(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+        var app = Application.getApp() as GarminMetarApp;
+        var countBefore = app.getTimerResetCount();
+
+        delegate.handleSwipe(WatchUi.SWIPE_LEFT);
+        if (app.getTimerResetCount() <= countBefore) {
+            logger.debug("Expected handleSwipe to reset timer");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testInteractionResetsTimerOnDrag(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+        var app = Application.getApp() as GarminMetarApp;
+        var countBefore = app.getTimerResetCount();
+
+        delegate.handleDrag(WatchUi.DRAG_TYPE_START, [100, 100]);
+        if (app.getTimerResetCount() <= countBefore) {
+            logger.debug("Expected handleDrag to reset timer");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testInteractionResetsTimerOnSelect(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+        var app = Application.getApp() as GarminMetarApp;
+        var countBefore = app.getTimerResetCount();
+
+        delegate.onSelect();
+        if (app.getTimerResetCount() <= countBefore) {
+            logger.debug("Expected onSelect to reset timer");
+            return false;
+        }
+        return true;
+    }
 }
+
