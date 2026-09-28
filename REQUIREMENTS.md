@@ -1,76 +1,147 @@
 # Requirements and UX Specifications
 
-Living document defining expected user experience, configuration, device behaviors, and constraints for GarminMetar.
+Living specification defining user experience, device behaviors, settings, and constraints for GarminMetar. Every requirement is mapped to automated verification tests.
 
-## 1. App Overview
-Garmin Connect IQ watch app displaying real-time aviation weather reports (METAR and TAF) from the AVWX REST API.
+## 1. Core Views & Screen States
 
-## 2. Default Views & Screen States
-- **Startup Mode**: Initial view displays the METAR report for the active station.
-- **Toggle View**: User switches between METAR and TAF via horizontal touch swipe (`SWIPE_LEFT` / `SWIPE_RIGHT`) or physical Select/Start button (`onSelect()`).
-- **Loading State**: Displays `"Loading METAR: <ICAO>..."` or `"Loading TAF: <ICAO>..."`.
-- **Status Codes & Errors**:
+### [REQ-VIEW-01] Startup View
+- **Statement**: On app launch, the initial view MUST display the METAR report for the active station.
+- **Verification**: `AppLifecycleTests.testInitialViewContract`, `ViewDataTests.testParseVfrPayload`
+
+### [REQ-VIEW-02] METAR and TAF View Toggle
+- **Statement**: User MUST be able to toggle between METAR and TAF via horizontal touch swipe (`SWIPE_LEFT` / `SWIPE_RIGHT`) or physical Select/Start button (`onSelect()`).
+- **Verification**: `DelegateTests.testSwipeLeftTogglesTaf`, `DelegateTests.testSwipeRightTogglesBackToMetar`, `DelegateTests.testKeyEnterTogglesTaf`
+
+### [REQ-VIEW-03] Loading State
+- **Statement**: While network requests are in flight, the view MUST display `"Loading METAR: <ICAO>..."` or `"Loading TAF: <ICAO>..."`.
+- **Verification**: `AppLifecycleTests.testInitialViewContract`
+
+### [REQ-VIEW-04] Error State Handling
+- **Statement**: Network and payload errors MUST be rendered with actionable descriptions:
   - Missing token: `"Set Token in App Settings"`
-  - Unauthorized (401/403): `"Error: 401\nCheck App Settings"`
+  - Unauthorized (401/403): `"Error: 401\nCheck App Settings"` or `"Error: 403\nCheck App Settings"`
   - Other HTTP status: `"Error: <code>"`
+  - Bluetooth timeout: `"Error: -104"`
   - Corrupt payload: `"Bad Format"`
+- **Verification**: `ViewDataTests.testMissingTokenPrompt`, `ViewDataTests.testParseAuthError401`, `ViewDataTests.testParseGenericHttpError`, `ViewDataTests.testParseBleTimeoutError`, `ViewDataTests.testParseMissingRawKey`
 
-## 3. Power & Lifecycle
-- **Auto-Exit Inactivity Timer**: Default 30 seconds.
-- **Timer Options**: 30 seconds (default), 60 seconds (1 min), 120 seconds (2 min), 0 (Unlimited / disabled).
-- **Inactivity Reset**: Any user keypress, screen tap, or drag gesture resets the inactivity timer.
-- **Exit Action**: When timeout elapses, the app calls `System.exit()`.
+## 2. Power & Lifecycle Management
 
-## 4. Airport Station Management
-- **Startup Station**: Loads from `TargetStation` setting (default `EGWU`).
-- **Station Menu**: Opened via `onMenu()` (Menu button on 5-button watches) or screen tap (`onTap()` on touchscreen watches).
-  - Top action item: `"Nearby Airports"` (launches GPS-based airport discovery).
-  - Configured stations: Parsed from `StationList` setting and sorted alphabetically.
-- **Nearby Airports Discovery**:
-  - Selecting `"Nearby Airports"` pushes a nested `Menu2` titled `"Nearby Airports"`.
-  - Coordinates acquired via `Toybox.Position` (`Positioning` permission).
-  - Coordinate validation: Acquired coordinates must be within valid geographic bounds (latitude [-90.0, 90.0], longitude [-180.0, 180.0]). Uninitialized Garmin sentinel coordinates `[180.0, 180.0]` are strictly rejected.
-  - GPS acquisition timeout: Service listens for position updates with an 8-second timeout. If no valid fix is acquired within 8 seconds, listening stops and UI transitions to error state.
-  - Fetches 5 closest reporting stations via `https://avwx.rest/api/station/near/{lat},{lon}?n=5`.
-  - Populates menu with 5 nearest airport items displaying ICAO with distance in main label (e.g. `EGLL (4.2nm)`) and airport name in sublabel.
-  - Fallback / Error states: Displays `"No GPS Fix"` or error description with a select-to-retry action item.
-  - Mock mode: When token begins with `MOCK`, provides 5 deterministic nearby airport fixtures without GPS or network.
-  - Selecting a nearby airport sets the active station, triggers weather fetch, and pops menus back to main view.
-- **Selection Scope**: Selecting a station updates the view and fetches data for the active session only. Does not overwrite the `TargetStation` property. Next app launch reverts to configured default.
+### [REQ-PWR-01] Auto-Exit Inactivity Timer
+- **Statement**: App MUST exit automatically after an inactivity duration specified by `AutoExitSeconds` (default 30 seconds; configurable to 30, 60, 120, or 0 to disable).
+- **Verification**: `AppLifecycleTests.testTimerStartsByDefault`, `AppLifecycleTests.testTimerStopOnAppStop`, `AppLifecycleTests.testSettingsChangedRefreshesTimer`
+
+### [REQ-PWR-02] Inactivity Timer Reset
+- **Statement**: Any user interaction (physical key press, screen tap, or drag gesture) MUST reset the inactivity countdown timer.
+- **Verification**: `AppLifecycleTests.testSettingsChangedRefreshesTimer`
+
+### [REQ-PWR-03] Exit Action
+- **Statement**: When the inactivity timer expires, the app MUST call `System.exit()` to terminate and save battery.
+- **Verification**: `AppLifecycleTests.testTimerStartsByDefault`
+
+## 3. Station Management
+
+### [REQ-STN-01] Default Startup Station
+- **Statement**: Active station on initial launch MUST load from the `TargetStation` property (default `EGWU`).
+- **Verification**: `AppLifecycleTests.testInitialViewContract`
+
+### [REQ-STN-02] Station Selection Menu
+- **Statement**: Station selection menu MUST open via `onMenu()` (Menu key on 5-button devices) or screen tap (`onTap()` on touchscreens). The top item MUST be `"Nearby Airports"`, followed by configured stations from `StationList`.
+- **Verification**: `DelegateTests.testOnMenuOpensStationMenu`, `DelegateTests.testTapOpensStationMenu`, `StationTests.testParseSimpleList`, `StationTests.testParseWithSpaces`
+
+### [REQ-STN-03] Session-Only Selection Scope
+- **Statement**: Selecting an airport updates the view and triggers weather queries for the active session only; it MUST NOT overwrite the configured `TargetStation` property.
+- **Verification**: `DelegateTests.testStationChangeResetsScroll`, `NearbyAirportsTests.testStationMenuDelegateSelectsNearby`
+
+## 4. Nearby Airport Discovery (GPS)
+
+### [REQ-GPS-01] Discovery Menu Activation
+- **Statement**: Selecting `"Nearby Airports"` MUST push a `Menu2` titled `"Nearby Airports"` with a `"Searching..."` status item while coordinates and airfields are being queried.
+- **Verification**: `NearbyAirportsTests.testStationMenuDelegateSelectsNearby`, `NearbyAirportsTests.testNearbyMenuDelegatePopulatesItems`
+
+### [REQ-GPS-02] Coordinate Bounds & Sentinel Validation
+- **Statement**: Acquired GPS coordinates MUST be validated within geographic bounds (`[-90.0, 90.0]` latitude, `[-180.0, 180.0]` longitude). Garmin's uninitialized sentinel coordinate `[180.0, 180.0]` MUST be rejected as invalid.
+- **Verification**: `NearbyAirportsTests.testCoordinateValidation`, `NearbyAirportsTests.testSimulatorUninitializedLocationRejected`, `NearbyAirportsTests.testFetchFromAvwxRejectsSentinelCoordinates`, `NearbyAirportsTests.testFetchFromAvwxRejectsOutOfBoundsCoordinates`
+
+### [REQ-GPS-03] GPS Acquisition Timeout
+- **Statement**: GPS listening MUST time out after 8 seconds if no valid fix is acquired, disabling location listeners and presenting `"No GPS Fix"` with a `"Select to retry"` action item.
+- **Verification**: `NearbyAirportsTests.testGpsTimeoutTriggersError`, `NearbyAirportsTests.testNearbyMenuDelegateErrorHandling`
+
+### [REQ-GPS-04] AVWX Station Query & Result Limit
+- **Statement**: Service MUST query `https://avwx.rest/api/station/near/{lat},{lon}?n=5` and parse up to 5 reporting airfields using `"nautical_miles"`, `"distance"`, or `"miles"`.
+- **Verification**: `NearbyAirportsTests.testParseNearbyResponseNauticalMiles`, `NearbyAirportsTests.testParseNearbyResponseNested`, `NearbyAirportsTests.testParseNearbyResponseFlat`, `NearbyAirportsTests.testParseNearbyResponseClampedToFive`, `NearbyAirportsTests.testParseNearbyResponseEmpty`
+
+### [REQ-GPS-05] Menu Item Formatting with Distance
+- **Statement**: Nearby airport items MUST display the ICAO code and distance in nautical miles in the primary label (`<ICAO> (<dist>nm)`, e.g. `"EGLL (4.2nm)"`) to prevent truncation, with airport name in the sublabel.
+- **Verification**: `NearbyAirportsTests.testNearbyMenuDelegatePopulatesItems`
+
+### [REQ-GPS-06] Simulated GPS Fallback
+- **Statement**: When watch GPS has no fix, service MUST check the `SimulatedGps` setting (`lat,lon`), validate coordinates, and query AVWX using those coordinates for simulator debugging.
+- **Verification**: `NearbyAirportsTests.testParseCoordinates`
+
+### [REQ-GPS-07] Offline Mock Airports
+- **Statement**: When the active token begins with `MOCK`, nearby airport discovery MUST return 5 deterministic mock airfields immediately without GPS or network calls.
+- **Verification**: `NearbyAirportsTests.testMockNearbyAirports`
 
 ## 5. Network & Caching
-- **Network Triggers**: HTTP GET request to AVWX API issued on initial show, station change, or view toggle (METAR <-> TAF).
-- **Session Caching**: None. Each toggle between METAR and TAF makes a fresh web request.
-- **Mock Token**: Tokens starting with `MOCK` bypass network calls and return deterministic mock payloads for offline testing and visual verification.
+
+### [REQ-NET-01] Network Request Triggers
+- **Statement**: HTTP GET requests to AVWX API MUST be issued on initial show, station change, or view toggle (METAR <-> TAF).
+- **Verification**: `ViewDataTests.testMockVfrIntegration`, `ViewDataTests.testMockTafIntegration`
+
+### [REQ-NET-02] Fresh Web Requests
+- **Statement**: The app MUST NOT cache reports between view toggles; each toggle issues a fresh request.
+- **Verification**: `ViewDataTests.testMockVfrIntegration`
+
+### [REQ-NET-03] Offline Mock Payloads
+- **Statement**: When `AvwxToken` starts with `MOCK`, network calls MUST be bypassed, returning deterministic mock payloads for VFR, IFR, and TAF states.
+- **Verification**: `LayoutProfileTests.testMockDataProviderVfr`, `LayoutProfileTests.testMockDataProviderIfrLong`, `LayoutProfileTests.testMockDataProviderTaf`, `ViewDataTests.testMockVfrIntegration`, `ViewDataTests.testMockTafIntegration`
 
 ## 6. Scrolling & Navigation
-- **Scrolling Controls**:
-  - Touch: Vertical drag (`onDrag`) on TAF view; vertical swipe (`SWIPE_UP` / `SWIPE_DOWN`) on both views.
-  - Buttons: Up button (`KEY_UP`) scrolls upward; Down button (`KEY_DOWN`) scrolls downward.
-- **Boundary Clamping**: Top scroll clamped at `0` (`mScrollY <= 0`). Bottom scroll is unbounded.
+
+### [REQ-NAV-01] Touch Gesture Scrolling
+- **Statement**: Vertical drag (`onDrag`) MUST scroll text in TAF view. Vertical swipe (`SWIPE_UP` / `SWIPE_DOWN`) MUST scroll in both METAR and TAF views.
+- **Verification**: `DelegateTests.testTouchDragAppliedOnTaf`, `DelegateTests.testTouchDragIgnoredOnMetar`, `DelegateTests.testSwipeUpAndDownScroll`
+
+### [REQ-NAV-02] Physical Button Scrolling
+- **Statement**: Pressing Up (`KEY_UP`) MUST scroll upward; pressing Down (`KEY_DOWN`) MUST scroll downward.
+- **Verification**: `DelegateTests.testKeyScrollDownAndUp`
+
+### [REQ-NAV-03] Scroll Clamping & Resets
+- **Statement**: Top scroll MUST be clamped at 0 (`mScrollY <= 0`). Changing station or toggling between METAR/TAF MUST reset scroll position to 0.
+- **Verification**: `DelegateTests.testScrollClampedAtTop`, `DelegateTests.testStationChangeResetsScroll`, `DelegateTests.testToggleTafResetsScroll`
 
 ## 7. Device Archetypes & Display Profiles
-- **Round Displays** (Fenix, Forerunner, Venu):
-  - Full-screen text display, centered vertically and horizontally.
-  - No header bar or flight category badge.
-- **Semi-Octagon Displays with Subscreen** (Instinct 2, Instinct Crossover):
-  - Cutout subscreen circle: displays flight rules badge (`VFR`, `MVFR`, `IFR`, `LIFR`, or `TAF` / `MET`).
-  - Header: station ICAO code and divider line (`y = 68`).
-  - Report text positioned below cutout (`y >= 68`), left-justified.
-- **Rectangular Displays** (Venu Sq):
-  - Top header: station ICAO code on left, flight category or TAF badge on right, divider line.
-  - Report text positioned below header, left-justified.
 
-## 8. App Settings (Garmin Connect)
-Configured via Garmin Connect Mobile or Garmin Express:
-1. `AvwxToken` (AlphaNumeric, string): AVWX API Bearer token. Default: `"YOUR_TOKEN_HERE"`.
-2. `TargetStation` (AlphaNumeric, string): Default airport ICAO code. Default: `"EGWU"`.
-3. `StationList` (AlphaNumeric, string): Comma-separated list of airport ICAO codes. Default: `"EGWU,EGLL,EGUB,EGVO,KJFK,KLAX"`.
-4. `AutoExitSeconds` (List, number): Inactivity auto-exit timer duration (30, 60, 120, 0). Default: `30`.
-5. `SimulatedGps` (AlphaNumeric, string): Optional internal property for simulated GPS coordinates (`lat,lon`). Default: `""`.
+### [REQ-ARCH-01] Round Displays (Fenix, Forerunner, Venu)
+- **Statement**: Round screen profile MUST display full-screen centered text without header bar or category badges.
+- **Verification**: `LayoutProfileTests.testRoundProfile`
 
-## 9. Local Development & Simulator Tooling
-- **Command Runner**: Developer workflow centralized in `scripts/dev.py` (`test`, `build`, `capture`, `matrix`, `sync-settings`).
-- **Local Environment Sync**: Untracked `.env` configuration (templated from `.env.example`) synced into binary Connect IQ simulator settings (`GARMINMETAR.SET` and `TEST.SET`) via `preLaunchTask` in `.vscode/launch.json`. Supports `AVWX_TOKEN`, `TARGET_STATION`, `STATION_LIST`, `AUTO_EXIT_SECONDS`, and `SIMULATED_GPS`.
+### [REQ-ARCH-02] Semi-Octagon Displays with Subscreen (Instinct Series)
+- **Statement**: On semi-octagon watches with subscreen circle cutouts, text MUST stay below the cutout (`y >= 68`), header MUST display station code and divider, and subscreen circle MUST display the flight rules badge (`VFR`, `MVFR`, `IFR`, `LIFR`, `TAF`, or `MET`).
+- **Verification**: `LayoutProfileTests.testInstinctProfile`, `LayoutProfileTests.testInstinct40mmProfile`
 
+### [REQ-ARCH-03] Rectangular Displays (Venu Sq, Edge)
+- **Statement**: Rectangular profile MUST render a top header with station ICAO on left, flight category or TAF badge on right, divider line, and text below header.
+- **Verification**: `LayoutProfileTests.testRectangleProfile`
 
+## 8. App Configuration Properties
+
+### [REQ-CFG-01] Persistent App Properties
+- **Statement**: App MUST support persistent configuration properties:
+  - `AvwxToken` (string, default `"YOUR_TOKEN_HERE"`)
+  - `TargetStation` (string, default `"EGWU"`)
+  - `StationList` (string, default `"EGWU,EGLL,EGUB,EGVO,KJFK,KLAX"`)
+  - `AutoExitSeconds` (number, default `30`)
+  - `SimulatedGps` (string, default `""`)
+- **Verification**: `ViewDataTests.testMissingTokenPrompt`, `StationTests.testParseSimpleList`, `AppLifecycleTests.testTimerStartsByDefault`
+
+## 9. Developer Tooling & Environment
+
+### [REQ-DEV-01] Developer CLI Surface
+- **Statement**: All build, test, and simulation commands MUST be runnable via `uv run scripts/dev.py` (`test`, `build`, `capture`, `matrix`, `sync-settings`).
+- **Verification**: Automated test runner execution via `scripts/dev.py`
+
+### [REQ-DEV-02] Local Environment Settings Sync
+- **Statement**: Untracked `.env` configuration (templated from `.env.example`) MUST be synced into binary Connect IQ simulator settings (`GARMINMETAR.SET` and `TEST.SET`) via VS Code `preLaunchTask` before debug launch.
+- **Verification**: `NearbyAirportsTests.testParseCoordinates`

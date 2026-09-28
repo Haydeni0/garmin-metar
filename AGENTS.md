@@ -22,6 +22,15 @@ touching `LayoutProfile` or drawing logic.
 
 ## Working rules
 
+- **Requirements-first**: Any user-visible behavior, constraint, or setting
+  must be documented in `REQUIREMENTS.md`. If it matters to the user or
+  system behavior, specify it there before or with the code.
+- **Cite requirements with meaning**: Never cite a bare requirement ID alone
+  (e.g. "per REQ-GPS-01"). Always provide a short summary or verbatim rule
+  alongside the ID so context is self-contained.
+- **Lock-in tests**: Every requirement must have automated test coverage
+  locking in the behavior. Never declare a feature or fix complete without
+  verifying against tests (`scripts/dev.py test`).
 - **Instinct cutout**: On semi-octagon watches with subscreen circles, text
   must stay below cutout (`y >= 68`) and subscreen shows flight category.
 - **Simulator capture**: Visual tests via `scripts/dev.py` require an
