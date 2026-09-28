@@ -9,7 +9,7 @@ Living specification defining user experience, device behaviors, settings, and c
 - **Verification**: `AppLifecycleTests.testInitialViewContract`, `ViewDataTests.testParseVfrPayload`
 
 ### [REQ-VIEW-02] METAR and TAF View Toggle
-- **Statement**: User MUST be able to toggle between METAR and TAF via horizontal touch swipe (`SWIPE_LEFT` / `SWIPE_RIGHT`) or physical Select/Start button (`onSelect()`).
+- **Statement**: User MUST be able to toggle between METAR and TAF via horizontal touch swipe (`SWIPE_LEFT` / `SWIPE_RIGHT`) or physical Select/Start button (`KEY_ENTER`).
 - **Verification**: `DelegateTests.testSwipeLeftTogglesTaf`, `DelegateTests.testSwipeRightTogglesBackToMetar`, `DelegateTests.testKeyEnterTogglesTaf`
 
 ### [REQ-VIEW-03] Loading State
@@ -64,8 +64,8 @@ Living specification defining user experience, device behaviors, settings, and c
 - **Verification**: `NearbyAirportsTests.testCoordinateValidation`, `NearbyAirportsTests.testSimulatorUninitializedLocationRejected`, `NearbyAirportsTests.testFetchFromAvwxRejectsSentinelCoordinates`, `NearbyAirportsTests.testFetchFromAvwxRejectsOutOfBoundsCoordinates`
 
 ### [REQ-GPS-03] GPS Acquisition Timeout
-- **Statement**: GPS listening MUST time out after 8 seconds if no valid fix is acquired, disabling location listeners and presenting `"No GPS Fix"` with a `"Select to retry"` action item.
-- **Verification**: `NearbyAirportsTests.testGpsTimeoutTriggersError`, `NearbyAirportsTests.testNearbyMenuDelegateErrorHandling`
+- **Statement**: GPS listening MUST time out after 8 seconds if no valid fix is acquired, disabling location listeners and presenting `"No GPS Fix"` with a `"Select to retry"` action item. When the user backs out of discovery (`onBack()`) or the view is hidden (`onHide()`), all active location listeners and timers MUST be cancelled immediately to conserve battery.
+- **Verification**: `NearbyAirportsTests.testGpsTimeoutTriggersError`, `NearbyAirportsTests.testNearbyMenuDelegateErrorHandling`, `NearbyAirportsTests.testNearbyMenuDelegateOnBackCancelsSearch`, `StationTests.testSetStationCancelsActiveGpsSearch`
 
 ### [REQ-GPS-04] AVWX Station Query & Result Limit
 - **Statement**: Service MUST query `https://avwx.rest/api/station/near/{lat},{lon}?n=5` and parse up to 5 reporting airfields using `"nautical_miles"`, `"distance"`, or `"miles"`.
@@ -118,7 +118,7 @@ Living specification defining user experience, device behaviors, settings, and c
 - **Verification**: `LayoutProfileTests.testRoundProfile`
 
 ### [REQ-ARCH-02] Semi-Octagon Displays with Subscreen (Instinct Series)
-- **Statement**: On semi-octagon watches with subscreen circle cutouts, text MUST stay below the cutout (`y >= 68`), header MUST display station code and divider, and subscreen circle MUST display the flight rules badge (`VFR`, `MVFR`, `IFR`, `LIFR`, `TAF`, or `MET`).
+- **Statement**: On semi-octagon watches with subscreen circle cutouts, text MUST stay below the cutout (`contentY = 58` for Instinct 40mm [166x166 screen / 52x52 subscreen]; `contentY = 68` for 45mm/50mm [176x176+ screen / 62x62 subscreen]), header MUST display station code and divider, and subscreen circle MUST display the flight rules badge (`VFR`, `MVFR`, `IFR`, `LIFR`, `TAF`, or `MET`).
 - **Verification**: `LayoutProfileTests.testInstinctProfile`, `LayoutProfileTests.testInstinct40mmProfile`
 
 ### [REQ-ARCH-03] Rectangular Displays (Venu Sq, Edge)

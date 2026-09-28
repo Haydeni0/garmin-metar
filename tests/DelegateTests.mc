@@ -2,6 +2,7 @@ using Toybox.Test;
 using Toybox.WatchUi;
 import Toybox.Lang;
 
+(:test)
 module DelegateTests {
 
     (:test)

@@ -2,6 +2,27 @@ import Toybox.Lang;
 
 module StationUtils {
 
+    function getSortedStations(listStr as String or Null) as Array<String> {
+        var stations = [] as Array<String>;
+        if (listStr == null || !(listStr instanceof String)) {
+            return stations;
+        }
+
+        stations = parseStationString(listStr);
+
+        // Sort stations alphabetically
+        for (var i = 0; i < stations.size(); i++) {
+            for (var j = i + 1; j < stations.size(); j++) {
+                if (stations[i].compareTo(stations[j]) > 0) {
+                    var temp = stations[i];
+                    stations[i] = stations[j];
+                    stations[j] = temp;
+                }
+            }
+        }
+        return stations;
+    }
+
     function parseStationString(listStr as String) as Array<String> {
         var stations = [] as Array<String>;
         

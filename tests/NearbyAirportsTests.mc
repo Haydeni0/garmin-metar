@@ -3,6 +3,7 @@ using Toybox.WatchUi;
 using Toybox.Position;
 import Toybox.Lang;
 
+(:test)
 module NearbyAirportsTests {
 
     (:test)
@@ -376,4 +377,119 @@ module NearbyAirportsTests {
 
         return true;
     }
+
+    (:test)
+    function testParseNearbyResponseNormalizesIntegerDistance(logger as Test.Logger) as Boolean {
+        var rawData = [
+            {"station" => {"icao" => "EGLL", "name" => "Heathrow"}, "nautical_miles" => 0},
+            {"station" => {"icao" => "EGWU", "name" => "Northolt"}, "nautical_miles" => 12}
+        ];
+        var parsed = NearbyAirportsService.parseNearbyResponse(rawData);
+        if (parsed.size() != 2) {
+            logger.debug("Expected 2 airports");
+            return false;
+        }
+        var d0 = parsed[0][:distance];
+        var d1 = parsed[1][:distance];
+        if (!(d0 instanceof Float) || d0 != 0.0) {
+            logger.debug("Expected d0 to be Float 0.0, got: " + d0);
+            return false;
+        }
+        if (!(d1 instanceof Float) || d1 != 12.0) {
+            logger.debug("Expected d1 to be Float 12.0, got: " + d1);
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testIntegerDistanceFormattingDoesNotCrash(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var menu = new WatchUi.Menu2({:title => "Nearby Airports"});
+        var delegate = new NearbyMenuDelegate(view, menu);
+
+        // Integer distance 0 and 12
+        var rawAirports = [
+            {:icao => "EGLL", :name => "Heathrow", :distance => 0},
+            {:icao => "EGWU", :name => "Northolt", :distance => 12}
+        ];
+
+        delegate.onNearbyResult(true, rawAirports);
+
+        var item0 = menu.getItem(menu.findItemById("EGLL"));
+        var item1 = menu.getItem(menu.findItemById("EGWU"));
+
+        if (!item0.getLabel().equals("EGLL (0.0nm)")) {
+            logger.debug("Expected EGLL (0.0nm), got: " + item0.getLabel());
+            return false;
+        }
+        if (!item1.getLabel().equals("EGWU (12.0nm)")) {
+            logger.debug("Expected EGWU (12.0nm), got: " + item1.getLabel());
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testNearbyMenuDelegateOnBackCancelsSearch(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var menu = new WatchUi.Menu2({:title => "Nearby Airports"});
+        var delegate = new NearbyMenuDelegate(view, menu);
+
+        // Push view so popView in onBack is safe on stack
+        WatchUi.pushView(menu, delegate, WatchUi.SLIDE_IMMEDIATE);
+
+        // Start search so service is active
+        delegate.startSearch();
+
+        // Simulate user pressing back
+        delegate.onBack();
+
+        if (delegate.getService().isSearching()) {
+            logger.debug("Expected service to not be searching after onBack()");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testParseCoordinatesWithSpaces(logger as Test.Logger) as Boolean {
+        var coords = NearbyAirportsService.parseCoordinates("  51.5074 , -0.1278  ");
+        if (coords == null) {
+            logger.debug("Expected valid coords for string with spaces");
+            return false;
+        }
+        if ((coords[0] - 51.5074).abs() > 0.001 || (coords[1] - (-0.1278)).abs() > 0.001) {
+            logger.debug("Coordinate value mismatch");
+            return false;
+        }
+        return true;
+    }
+
+    class MockNearbyCallbackHolder {
+        var mSuccess as Boolean = false;
+        var mData as Object or Null = null;
+
+        function callback(success as Boolean, data as Object) as Void {
+            mSuccess = success;
+            mData = data;
+        }
+    }
+
+    (:test)
+    function testNearbyNonArray200PayloadHandledSafely(logger as Test.Logger) as Boolean {
+        var service = new NearbyAirportsService();
+        var holder = new MockNearbyCallbackHolder();
+        service.searchNearby(holder.method(:callback));
+
+        // Inject non-array 200 response
+        service.onReceiveNearby(200, "Unexpected string payload");
+
+        if (holder.mSuccess != false || holder.mData == null || !holder.mData.equals("Bad Format")) {
+            logger.debug("Expected callback(false, 'Bad Format'), got success=" + holder.mSuccess + " data=" + holder.mData);
+            return false;
+        }
+        return true;
+    }
 }
+

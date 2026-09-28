@@ -3,6 +3,7 @@ import Toybox.Lang;
 import Toybox.System;
 import Toybox.Graphics;
 
+(:test)
 module LayoutProfileTests {
 
     (:test)

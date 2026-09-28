@@ -39,7 +39,11 @@ class NearbyMenuDelegate extends WatchUi.Menu2InputDelegate {
                 var label = icao;
                 if (ap.hasKey(:distance) && ap[:distance] != null) {
                     var d = ap[:distance];
-                    label = icao + " (" + d.format("%.1f") + "nm)";
+                    if (d instanceof Float || d instanceof Double) {
+                        label = icao + " (" + d.format("%.1f") + "nm)";
+                    } else if (d instanceof Number) {
+                        label = icao + " (" + d.toFloat().format("%.1f") + "nm)";
+                    }
                 }
                 var sublabel = "";
                 if (ap.hasKey(:name) && ap[:name] != null && !ap[:name].equals("")) {
@@ -79,5 +83,14 @@ class NearbyMenuDelegate extends WatchUi.Menu2InputDelegate {
 
     function isLoaded() as Boolean {
         return mLoaded;
+    }
+
+    function onBack() as Void {
+        mService.cancel();
+        WatchUi.popView(WatchUi.SLIDE_RIGHT);
+    }
+
+    function getService() as NearbyAirportsService {
+        return mService;
     }
 }

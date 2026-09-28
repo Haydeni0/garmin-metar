@@ -1,6 +1,7 @@
 using Toybox.Test;
 import Toybox.Lang;
 
+(:test)
 module ViewDataTests {
 
     (:test)
@@ -146,6 +147,24 @@ module ViewDataTests {
         }
         if (view.getMetarCode().find("TAF") == null) {
             logger.debug("Expected TAF in forecast text, got: " + view.getMetarCode());
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testParseNullRawKeyHandledSafely(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var payload = {"raw" => null, "flight_rules" => 123};
+        view.onReceive(200, payload);
+
+        var code = view.getMetarCode();
+        if (code == null || !code.equals("Bad Format")) {
+            logger.debug("Expected Bad Format for null raw, got: " + code);
+            return false;
+        }
+        if (view.getFlightRules() != null) {
+            logger.debug("Expected null flight rules for non-string, got: " + view.getFlightRules());
             return false;
         }
         return true;

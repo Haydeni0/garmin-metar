@@ -87,6 +87,10 @@ class NearbyAirportsService {
         mCallback = null;
     }
 
+    function isSearching() as Boolean {
+        return mIsSearching;
+    }
+
     function onGpsTimeout() as Void {
         stopGpsListening();
         notifyError("No GPS Fix");
@@ -146,6 +150,8 @@ class NearbyAirportsService {
             } else if (cb != null) {
                 cb.invoke(true, airports);
             }
+        } else if (responseCode == 200) {
+            notifyError("Bad Format");
         } else if (responseCode == 401 || responseCode == 403) {
             notifyError("Auth Error " + responseCode);
         } else {
@@ -177,8 +183,8 @@ class NearbyAirportsService {
         if (commaIdx == null || commaIdx <= 0) {
             return null;
         }
-        var latStr = coordStr.substring(0, commaIdx);
-        var lonStr = coordStr.substring(commaIdx + 1, coordStr.length());
+        var latStr = StationUtils.trim(coordStr.substring(0, commaIdx));
+        var lonStr = StationUtils.trim(coordStr.substring(commaIdx + 1, coordStr.length()));
         if (latStr == null || lonStr == null) {
             return null;
         }
@@ -243,8 +249,12 @@ class NearbyAirportsService {
                     }
                 }
 
-                if (dist != null && dist instanceof String) {
-                    dist = (dist as String).toFloat();
+                if (dist != null) {
+                    if (dist instanceof Number || dist instanceof Long) {
+                        dist = dist.toFloat();
+                    } else if (dist instanceof String) {
+                        dist = (dist as String).toFloat();
+                    }
                 }
 
                 if (icao != null && icao instanceof String) {

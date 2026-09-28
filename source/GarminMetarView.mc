@@ -11,6 +11,7 @@ class GarminMetarView extends WatchUi.View {
     hidden var mToken; 
     hidden var mTextAreaMetar;
     hidden var mTextAreaTaf;
+    hidden var mCurrentLayoutArea as WatchUi.TextArea or Null = null;
     hidden var mStation = "EGWU";
     hidden var mIsShowingTaf = false;
     hidden var mScrollY = 0;
@@ -71,8 +72,10 @@ class GarminMetarView extends WatchUi.View {
         });
 
         if (mIsShowingTaf) {
+            mCurrentLayoutArea = mTextAreaTaf;
             setLayout([ mTextAreaTaf ]);
         } else {
+            mCurrentLayoutArea = mTextAreaMetar;
             setLayout([ mTextAreaMetar ]);
         }
     }
@@ -93,6 +96,10 @@ class GarminMetarView extends WatchUi.View {
     }
     
     function setStation(station) {
+        if (mIsLocatingClosest && mNearbyService != null) {
+            mNearbyService.cancel();
+            mIsLocatingClosest = false;
+        }
         mStation = station;
         mFlightRules = null;
         mScrollY = 0;
@@ -107,17 +114,25 @@ class GarminMetarView extends WatchUi.View {
     function toggleTaf() {
         mIsShowingTaf = !mIsShowingTaf;
         mScrollY = 0;
-        if (mStation.equals("")) {
-            mMetarCode = "Locating closest airport...";
-        } else if (mIsShowingTaf) {
-            mMetarCode = "Loading TAF: " + mStation + "...";
+        if (mIsShowingTaf) {
             if (mTextAreaTaf != null) {
+                mCurrentLayoutArea = mTextAreaTaf;
                 setLayout([ mTextAreaTaf ]);
             }
+            if (mStation.equals("")) {
+                mMetarCode = "Locating closest airport...";
+            } else {
+                mMetarCode = "Loading TAF: " + mStation + "...";
+            }
         } else {
-            mMetarCode = "Loading METAR: " + mStation + "...";
             if (mTextAreaMetar != null) {
+                mCurrentLayoutArea = mTextAreaMetar;
                 setLayout([ mTextAreaMetar ]);
+            }
+            if (mStation.equals("")) {
+                mMetarCode = "Locating closest airport...";
+            } else {
+                mMetarCode = "Loading METAR: " + mStation + "...";
             }
         }
         WatchUi.requestUpdate();
@@ -223,13 +238,13 @@ class GarminMetarView extends WatchUi.View {
        
        if (responseCode == 200) {
            if (data instanceof Dictionary) {
-               if (data.hasKey("raw")) {
-                   mMetarCode = data["raw"];
+               if (data.hasKey("raw") && data["raw"] instanceof String) {
+                   mMetarCode = data["raw"] as String;
                } else {
                    mMetarCode = "Bad Format";
                }
-               if (data.hasKey("flight_rules") && data["flight_rules"] != null) {
-                   mFlightRules = data["flight_rules"];
+               if (data.hasKey("flight_rules") && data["flight_rules"] instanceof String) {
+                   mFlightRules = data["flight_rules"] as String;
                } else {
                    mFlightRules = null;
                }
@@ -267,11 +282,60 @@ class GarminMetarView extends WatchUi.View {
     }
 
     function locateClosestAirport() as Void {
+        if (mIsLocatingClosest) {
+            return;
+        }
         if (mNearbyService == null) {
             mNearbyService = new NearbyAirportsService();
         }
         mIsLocatingClosest = true;
         mNearbyService.searchNearby(method(:onClosestAirportResult));
+    }
+
+    function getNearbyService() as NearbyAirportsService or Null {
+        return mNearbyService;
+    }
+
+    function setNearbyServiceForTest(service as NearbyAirportsService) as Void {
+        mNearbyService = service;
+    }
+
+    function getActiveTextArea() as WatchUi.TextArea or Null {
+        return mCurrentLayoutArea;
+    }
+
+    function getTextAreaMetar() as WatchUi.TextArea or Null {
+        return mTextAreaMetar;
+    }
+
+    function getTextAreaTaf() as WatchUi.TextArea or Null {
+        return mTextAreaTaf;
+    }
+
+    function initTextAreasForTest() as Void {
+        if (mProfile == null) {
+            mProfile = new LayoutProfile(null, null);
+        }
+        mTextAreaMetar = new WatchUi.TextArea({
+            :text => mMetarCode,
+            :color => Graphics.COLOR_WHITE,
+            :font => Graphics.FONT_XTINY,
+            :locX => 0,
+            :locY => 0,
+            :width => 100,
+            :height => 100
+        });
+        mTextAreaTaf = new WatchUi.TextArea({
+            :text => mMetarCode,
+            :color => Graphics.COLOR_WHITE,
+            :font => Graphics.FONT_XTINY,
+            :locX => 0,
+            :locY => 0,
+            :width => 100,
+            :height => 100
+        });
+        mCurrentLayoutArea = mTextAreaMetar;
+        setLayout([ mTextAreaMetar ]);
     }
 
     function onClosestAirportResult(success as Boolean, data as Object) as Void {

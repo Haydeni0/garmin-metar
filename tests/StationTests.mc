@@ -2,6 +2,7 @@ using Toybox.Test;
 using Toybox.Application;
 import Toybox.Lang;
 
+(:test)
 module StationTests {
 
     (:test)
@@ -136,4 +137,126 @@ module StationTests {
         }
         return true;
     }
+
+    (:test)
+    function testToggleTafWhileLocatingSwitchesLayout(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.initTextAreasForTest();
+        view.setToken("MOCK_VFR");
+        view.setStation("");
+
+        // Initial state is METAR
+        if (view.getActiveTextArea() != view.getTextAreaMetar()) {
+            logger.debug("Expected active text area to be METAR");
+            return false;
+        }
+
+        // Toggle while locating
+        view.toggleTaf();
+
+        if (!view.isShowingTaf()) {
+            logger.debug("Expected isShowingTaf true");
+            return false;
+        }
+        if (view.getActiveTextArea() != view.getTextAreaTaf()) {
+            logger.debug("Expected active text area to be TAF");
+            return false;
+        }
+        var code = view.getMetarCode();
+        if (code == null || !code.equals("Locating closest airport...")) {
+            logger.debug("Expected Locating closest airport..., got: " + code);
+            return false;
+        }
+
+        // Clean up service if instantiated
+        if (view.getNearbyService() != null) {
+            view.getNearbyService().cancel();
+        }
+        return true;
+    }
+
+    class MockReentrancyService extends NearbyAirportsService {
+        var searchCallCount as Number = 0;
+        hidden var mSearching as Boolean = false;
+
+        function searchNearby(callback as Method) as Void {
+            searchCallCount++;
+            mSearching = true;
+        }
+
+        function isSearching() as Boolean {
+            return mSearching;
+        }
+
+        function cancel() as Void {
+            mSearching = false;
+        }
+    }
+
+    (:test)
+    function testLocateClosestAirportReentrancyGuard(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.setStation("");
+        var mockService = new MockReentrancyService();
+        view.setNearbyServiceForTest(mockService);
+
+        view.locateClosestAirport();
+        if (mockService.searchCallCount != 1) {
+            logger.debug("Expected searchCallCount 1, got: " + mockService.searchCallCount);
+            return false;
+        }
+
+        // Re-entrant call while mIsLocatingClosest is true
+        view.locateClosestAirport();
+        if (mockService.searchCallCount != 1) {
+            logger.debug("Expected searchCallCount still 1 after re-entrant call, got: " + mockService.searchCallCount);
+            return false;
+        }
+
+        mockService.cancel();
+        return true;
+    }
+
+    (:test)
+    function testSetStationCancelsActiveGpsSearch(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.setStation("");
+        view.locateClosestAirport();
+
+        if (!view.isLocatingClosest()) {
+            logger.debug("Expected isLocatingClosest true");
+            return false;
+        }
+
+        // User manually sets station
+        view.setStation("EGLL");
+
+        if (view.isLocatingClosest()) {
+            logger.debug("Expected isLocatingClosest false after setStation");
+            return false;
+        }
+        if (view.getNearbyService() != null && view.getNearbyService().isSearching()) {
+            logger.debug("Expected service to not be searching after setStation");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testGetSortedStations(logger as Test.Logger) as Boolean {
+        var input = "KJFK, EGLL,  EGWU , EGUB";
+        var sorted = StationUtils.getSortedStations(input);
+
+        if (sorted.size() != 4) {
+            logger.debug("Expected size 4, got: " + sorted.size());
+            return false;
+        }
+        if (!sorted[0].equals("EGLL") || !sorted[1].equals("EGUB") || !sorted[2].equals("EGWU") || !sorted[3].equals("KJFK")) {
+            logger.debug("Sort order mismatch: " + sorted);
+            return false;
+        }
+        return true;
+    }
 }
+
+

@@ -3,6 +3,7 @@ using Toybox.WatchUi;
 using Toybox.Application;
 import Toybox.Lang;
 
+(:test)
 module AppLifecycleTests {
 
     (:test)
