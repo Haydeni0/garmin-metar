@@ -24,10 +24,11 @@ class NearbyAirportsService {
         if (token != null && token instanceof String && token.find("MOCK") == 0) {
             var mockAirports = getMockNearbyAirports();
             var cb = mCallback;
+            mCallback = null;
+            mIsSearching = false;
             if (cb != null) {
                 cb.invoke(true, mockAirports);
             }
-            mIsSearching = false;
             return;
         }
 
@@ -146,6 +147,7 @@ class NearbyAirportsService {
             var rawArr = data as Array;
             var airports = parseNearbyResponse(rawArr);
             var cb = mCallback;
+            mCallback = null;
             if (airports.size() == 0) {
                 notifyError("No Airports Found");
             } else if (cb != null) {
@@ -201,9 +203,18 @@ class NearbyAirportsService {
         stopGpsListening();
         mIsSearching = false;
         var cb = mCallback;
+        mCallback = null;
         if (cb != null) {
             cb.invoke(false, message);
         }
+    }
+
+    function getCallbackForTest() as Method or Null {
+        return mCallback;
+    }
+
+    function setCallbackForTest(cb as Method) as Void {
+        mCallback = cb;
     }
 
     static function getNearbyLimit() as Number {
@@ -217,64 +228,68 @@ class NearbyAirportsService {
         return 5;
     }
 
+    hidden static function parseAirportEntry(entryDict as Dictionary) as Dictionary or Null {
+        var icao = null;
+        var name = null;
+        var dist = null;
+
+        if (entryDict.hasKey("station") && entryDict["station"] instanceof Dictionary) {
+            var st = entryDict["station"] as Dictionary;
+            if (st.hasKey("icao") && st["icao"] instanceof String) {
+                icao = st["icao"];
+            }
+            if (st.hasKey("name") && st["name"] instanceof String) {
+                name = st["name"];
+            }
+        } else if (entryDict.hasKey("icao") && entryDict["icao"] instanceof String) {
+            icao = entryDict["icao"];
+            if (entryDict.hasKey("name") && entryDict["name"] instanceof String) {
+                name = entryDict["name"];
+            }
+        }
+
+        if (icao == null) {
+            return null;
+        }
+
+        if (entryDict.hasKey("nautical_miles")) {
+            dist = entryDict["nautical_miles"];
+        } else if (entryDict.hasKey("distance")) {
+            dist = entryDict["distance"];
+        } else if (entryDict.hasKey("miles")) {
+            dist = entryDict["miles"];
+        } else if (entryDict.hasKey("station") && entryDict["station"] instanceof Dictionary) {
+            var stDict = entryDict["station"] as Dictionary;
+            if (stDict.hasKey("nautical_miles")) {
+                dist = stDict["nautical_miles"];
+            } else if (stDict.hasKey("distance")) {
+                dist = stDict["distance"];
+            }
+        }
+
+        if (dist != null) {
+            if (dist instanceof Number || dist instanceof Long) {
+                dist = dist.toFloat();
+            } else if (dist instanceof String) {
+                dist = (dist as String).toFloat();
+            }
+        }
+
+        return {
+            :icao => icao,
+            :name => name != null ? name : "",
+            :distance => dist
+        };
+    }
+
     static function parseNearbyResponse(data as Array) as Array<Dictionary> {
         var result = [] as Array<Dictionary>;
         var maxCount = getNearbyLimit();
-        if (data.size() < maxCount) {
-            maxCount = data.size();
-        }
-        for (var i = 0; i < maxCount; i++) {
+        for (var i = 0; i < data.size() && result.size() < maxCount; i++) {
             var entry = data[i];
             if (entry instanceof Dictionary) {
-                var entryDict = entry as Dictionary;
-                var icao = null;
-                var name = null;
-                var dist = null;
-
-                if (entryDict.hasKey("station") && entryDict["station"] instanceof Dictionary) {
-                    var st = entryDict["station"] as Dictionary;
-                    if (st.hasKey("icao")) {
-                        icao = st["icao"];
-                    }
-                    if (st.hasKey("name")) {
-                        name = st["name"];
-                    }
-                } else if (entryDict.hasKey("icao")) {
-                    icao = entryDict["icao"];
-                    if (entryDict.hasKey("name")) {
-                        name = entryDict["name"];
-                    }
-                }
-
-                if (entryDict.hasKey("nautical_miles")) {
-                    dist = entryDict["nautical_miles"];
-                } else if (entryDict.hasKey("distance")) {
-                    dist = entryDict["distance"];
-                } else if (entryDict.hasKey("miles")) {
-                    dist = entryDict["miles"];
-                } else if (entryDict.hasKey("station") && entryDict["station"] instanceof Dictionary) {
-                    var stDict = entryDict["station"] as Dictionary;
-                    if (stDict.hasKey("nautical_miles")) {
-                        dist = stDict["nautical_miles"];
-                    } else if (stDict.hasKey("distance")) {
-                        dist = stDict["distance"];
-                    }
-                }
-
-                if (dist != null) {
-                    if (dist instanceof Number || dist instanceof Long) {
-                        dist = dist.toFloat();
-                    } else if (dist instanceof String) {
-                        dist = (dist as String).toFloat();
-                    }
-                }
-
-                if (icao != null && icao instanceof String) {
-                    var item = {
-                        :icao => icao,
-                        :name => name != null ? name : "",
-                        :distance => dist
-                    };
+                var item = parseAirportEntry(entry as Dictionary);
+                if (item != null) {
                     result.add(item);
                 }
             }
@@ -283,13 +298,7 @@ class NearbyAirportsService {
     }
 
     static function getMockNearbyAirports() as Array<Dictionary> {
-        var allMocks = [
-            {:icao => "EGLL", :name => "Heathrow", :distance => 4.2},
-            {:icao => "EGWU", :name => "Northolt", :distance => 6.1},
-            {:icao => "EGUB", :name => "Benson", :distance => 18.5},
-            {:icao => "EGVO", :name => "Odiham", :distance => 24.0},
-            {:icao => "EGLC", :name => "London City", :distance => 26.8}
-        ];
+        var allMocks = MockDataProvider.getMockNearbyAirports();
         var limit = getNearbyLimit();
         if (allMocks.size() <= limit) {
             return allMocks;

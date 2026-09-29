@@ -303,6 +303,39 @@ module AppLifecycleTests {
 
         return true;
     }
+
+    (:test)
+    function testInactivityMenu2DelegateInheritance(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var menu = new WatchUi.Menu2({:title => "Test"});
+        var stationDelegate = new StationMenuDelegate(view);
+        var nearbyDelegate = new NearbyMenuDelegate(view, menu);
+
+        if (!(stationDelegate instanceof InactivityMenu2Delegate)) {
+            logger.debug("Expected StationMenuDelegate to inherit from InactivityMenu2Delegate");
+            return false;
+        }
+        if (!(nearbyDelegate instanceof InactivityMenu2Delegate)) {
+            logger.debug("Expected NearbyMenuDelegate to inherit from InactivityMenu2Delegate");
+            return false;
+        }
+
+        var app = Application.getApp() as GarminMetarApp;
+        app.resetTimer();
+        var resetsBefore = app.getTimerResetCount();
+
+        var wrapHandled = stationDelegate.onWrap(WatchUi.KEY_DOWN);
+        if (!wrapHandled) {
+            logger.debug("Expected onWrap to return true");
+            return false;
+        }
+        if (app.getTimerResetCount() <= resetsBefore) {
+            logger.debug("Expected timer reset count to increment after onWrap");
+            return false;
+        }
+
+        return true;
+    }
 }
 
 

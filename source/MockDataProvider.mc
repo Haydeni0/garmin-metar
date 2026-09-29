@@ -43,4 +43,14 @@ module MockDataProvider {
             "flight_rules" => "VFR"
         };
     }
+
+    function getMockNearbyAirports() as Array<Dictionary> {
+        return [
+            { :icao => "EGLL", :name => "Heathrow", :distance => 4.2 },
+            { :icao => "EGWU", :name => "Northolt", :distance => 6.1 },
+            { :icao => "EGUB", :name => "Benson", :distance => 18.5 },
+            { :icao => "EGVO", :name => "Odiham", :distance => 24.0 },
+            { :icao => "EGLC", :name => "London City", :distance => 26.8 }
+        ] as Array<Dictionary>;
+    }
 }

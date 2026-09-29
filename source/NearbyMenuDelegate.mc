@@ -2,14 +2,14 @@ using Toybox.WatchUi;
 using Toybox.Application;
 import Toybox.Lang;
 
-class NearbyMenuDelegate extends WatchUi.Menu2InputDelegate {
+class NearbyMenuDelegate extends InactivityMenu2Delegate {
     hidden var mView;
     hidden var mMenu as WatchUi.Menu2;
     hidden var mService as NearbyAirportsService;
     hidden var mLoaded as Boolean = false;
 
     function initialize(view, menu as WatchUi.Menu2) {
-        Menu2InputDelegate.initialize();
+        InactivityMenu2Delegate.initialize();
         mView = view;
         mMenu = menu;
         mService = new NearbyAirportsService();
@@ -76,7 +76,6 @@ class NearbyMenuDelegate extends WatchUi.Menu2InputDelegate {
 
         if (id != null && !id.equals("STATUS_SEARCHING")) {
             mView.setStation(id);
-            mView.makeRequest();
             // Pop nearby menu and station menu back to main weather view
             WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
             WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
@@ -91,29 +90,6 @@ class NearbyMenuDelegate extends WatchUi.Menu2InputDelegate {
         Application.getApp().resetTimer();
         mService.cancel();
         WatchUi.popView(WatchUi.SLIDE_RIGHT);
-    }
-
-    function onWrap(key as WatchUi.Key) as Boolean {
-        Application.getApp().resetTimer();
-        return true;
-    }
-
-    function onNextPage() as Boolean {
-        Application.getApp().resetTimer();
-        return false;
-    }
-
-    function onPreviousPage() as Boolean {
-        Application.getApp().resetTimer();
-        return false;
-    }
-
-    function onTitle() as Void {
-        Application.getApp().resetTimer();
-    }
-
-    function onFooter() as Void {
-        Application.getApp().resetTimer();
     }
 
     function getService() as NearbyAirportsService {

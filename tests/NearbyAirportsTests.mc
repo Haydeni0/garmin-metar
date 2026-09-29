@@ -551,5 +551,98 @@ module NearbyAirportsTests {
         }
         return true;
     }
+
+    (:test)
+    function testMockDataProviderNearbyAirports(logger as Test.Logger) as Boolean {
+        var airports = MockDataProvider.getMockNearbyAirports();
+        if (airports == null || airports.size() != 5) {
+            logger.debug("Expected 5 mock nearby airports from MockDataProvider");
+            return false;
+        }
+        if (!airports[0][:icao].equals("EGLL") || !airports[0][:name].equals("Heathrow")) {
+            logger.debug("Expected first mock airport to be EGLL Heathrow");
+            return false;
+        }
+        var serviceAirports = NearbyAirportsService.getMockNearbyAirports();
+        if (serviceAirports.size() != airports.size()) {
+            logger.debug("Expected NearbyAirportsService delegation to match MockDataProvider");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testParseNearbyResponseSkipsMalformedEntriesUntilLimit(logger as Test.Logger) as Boolean {
+        var rawData = [
+            "not a dict",
+            { "other" => "no icao" },
+            { "icao" => "EGLL", "name" => "Heathrow", "distance" => 7.2 },
+            { "station" => { "name" => "No ICAO" }, "distance" => 10.0 },
+            { "station" => { "icao" => "EGWU", "name" => "Northolt" }, "nautical_miles" => 3.5 },
+            { "icao" => "EGSS", "name" => "Stansted", "distance" => 25.0 },
+            { "icao" => "EGKK", "name" => "Gatwick", "distance" => 28.0 },
+            { "icao" => "EGLC", "name" => "London City", "distance" => 14.0 },
+            { "icao" => "EGGW", "name" => "Luton", "distance" => 30.0 }
+        ];
+
+        var parsed = NearbyAirportsService.parseNearbyResponse(rawData);
+        if (parsed.size() != 5) {
+            logger.debug("Expected 5 valid airports parsed despite leading malformed entries, got: " + parsed.size());
+            return false;
+        }
+        if (!parsed[0][:icao].equals("EGLL") || !parsed[1][:icao].equals("EGWU")) {
+            logger.debug("Expected parsed order to maintain first valid entries EGLL, EGWU");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testCallbackClearedOnMockSearch(logger as Test.Logger) as Boolean {
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        Application.Properties.setValue("AvwxToken", "MOCK_TOKEN");
+        try {
+            var service = new NearbyAirportsService();
+            var holder = new MockNearbyCallbackHolder();
+            service.searchNearby(holder.method(:callback));
+            if (service.getCallbackForTest() != null) {
+                logger.debug("Expected callback to be null after mock search completes");
+                return false;
+            }
+            if (service.isSearching()) {
+                logger.debug("Expected isSearching to be false after mock search completes");
+                return false;
+            }
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+        }
+    }
+
+    (:test)
+    function testCallbackClearedAfterSuccessfulReceive(logger as Test.Logger) as Boolean {
+        var service = new NearbyAirportsService();
+        var holder = new MockNearbyCallbackHolder();
+        var payload = [{ "icao" => "EGLL", "name" => "Heathrow", "distance" => 5.0 }] as Object;
+        service.onReceiveNearby(200, payload as Dictionary or String or Null);
+        if (service.getCallbackForTest() != null) {
+            logger.debug("Expected callback to be null after onReceiveNearby");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testCallbackClearedAfterError(logger as Test.Logger) as Boolean {
+        var service = new NearbyAirportsService();
+        var holder = new MockNearbyCallbackHolder();
+        service.setCallbackForTest(holder.method(:callback));
+        service.onReceiveNearby(500, null);
+        if (service.getCallbackForTest() != null) {
+            logger.debug("Expected callback to be null after error notification");
+            return false;
+        }
+        return true;
+    }
 }
 

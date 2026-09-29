@@ -136,11 +136,11 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     }
 }
 
-class StationMenuDelegate extends WatchUi.Menu2InputDelegate {
+class StationMenuDelegate extends InactivityMenu2Delegate {
     hidden var mView;
     
     function initialize(view) {
-        Menu2InputDelegate.initialize();
+        InactivityMenu2Delegate.initialize();
         mView = view;
     }
     
@@ -157,36 +157,12 @@ class StationMenuDelegate extends WatchUi.Menu2InputDelegate {
         }
 
         mView.setStation(id);
-        mView.makeRequest();
         WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
     }
 
     function onBack() as Void {
         Application.getApp().resetTimer();
         WatchUi.popView(WatchUi.SLIDE_DOWN);
-    }
-
-    function onWrap(key as WatchUi.Key) as Boolean {
-        Application.getApp().resetTimer();
-        return true;
-    }
-
-    function onNextPage() as Boolean {
-        Application.getApp().resetTimer();
-        return false;
-    }
-
-    function onPreviousPage() as Boolean {
-        Application.getApp().resetTimer();
-        return false;
-    }
-
-    function onTitle() as Void {
-        Application.getApp().resetTimer();
-    }
-
-    function onFooter() as Void {
-        Application.getApp().resetTimer();
     }
 }
 

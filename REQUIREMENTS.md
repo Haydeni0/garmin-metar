@@ -14,7 +14,7 @@ Living specification defining user experience, device behaviors, settings, and c
 
 ### [REQ-VIEW-03] Loading State
 - **Statement**: While network requests are in flight, the view MUST display `"Loading METAR: <ICAO>..."` or `"Loading TAF: <ICAO>..."`.
-- **Verification**: `AppLifecycleTests.testInitialViewContract`
+- **Verification**: `AppLifecycleTests.testInitialViewContract`, `ViewDataTests.testInitialLayoutShowsStationLoadingString`
 
 ### [REQ-VIEW-04] Error State Handling
 - **Statement**: Network and payload errors MUST be rendered with actionable descriptions:
@@ -98,6 +98,10 @@ Living specification defining user experience, device behaviors, settings, and c
 ### [REQ-NET-03] Offline Mock Payloads
 - **Statement**: When `AvwxToken` starts with `MOCK`, network calls MUST be bypassed, returning deterministic mock payloads for VFR, IFR, and TAF states.
 - **Verification**: `LayoutProfileTests.testMockDataProviderVfr`, `LayoutProfileTests.testMockDataProviderIfrLong`, `LayoutProfileTests.testMockDataProviderTaf`, `ViewDataTests.testMockVfrIntegration`, `ViewDataTests.testMockTafIntegration`
+
+### [REQ-NET-04] Request Deduplication & Lifecycle Optimization
+- **Statement**: The application MUST NOT dispatch duplicate concurrent HTTP requests for the same station and report type. Returning to the main view from menus without changing the target station MUST NOT re-trigger network requests if reports are already loaded. Re-selecting the currently active station in the station menu MUST mark the data stale and trigger a single refresh request upon view return.
+- **Verification**: `StationTests.testMenuReturnTriggersSingleRequest`, `StationTests.testMenuCancelDoesNotTriggerDuplicateRequest`, `StationTests.testStationReselectionTriggersRefresh`
 
 ## 6. Scrolling & Navigation
 

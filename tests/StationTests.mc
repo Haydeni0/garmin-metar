@@ -1,5 +1,6 @@
 using Toybox.Test;
 using Toybox.Application;
+using Toybox.WatchUi;
 import Toybox.Lang;
 
 (:test)
@@ -267,6 +268,89 @@ module StationTests {
             return false;
         }
         return true;
+    }
+
+    (:test)
+    function testMenuReturnTriggersSingleRequest(logger as Test.Logger) as Boolean {
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        Application.Properties.setValue("AvwxToken", "MOCK_VFR");
+        try {
+            var view = new GarminMetarView();
+            var delegate = new StationMenuDelegate(view);
+            view.setStation("EGLL");
+            view.onShow(); // First fetch
+            var reqCountBefore = view.getRequestCountForTest();
+
+            var item = new WatchUi.MenuItem("EGLL", null, "EGLL", null);
+            // Selecting station marks needsRefresh but does NOT fire makeRequest directly
+            delegate.onSelect(item);
+            if (view.getRequestCountForTest() != reqCountBefore) {
+                logger.debug("Expected onSelect to not issue makeRequest directly");
+                return false;
+            }
+            if (!view.getNeedsRefreshForTest()) {
+                logger.debug("Expected needsRefresh to be true after station selection");
+                return false;
+            }
+
+            // Returning to view via onShow triggers exactly one fetch and resets needsRefresh
+            view.onShow();
+            if (view.getRequestCountForTest() != reqCountBefore + 1) {
+                logger.debug("Expected exactly one request triggered by onShow, got: " + (view.getRequestCountForTest() - reqCountBefore));
+                return false;
+            }
+            if (view.getNeedsRefreshForTest()) {
+                logger.debug("Expected needsRefresh to be false after onShow fetch");
+                return false;
+            }
+
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+        }
+    }
+
+    (:test)
+    function testMenuCancelDoesNotTriggerDuplicateRequest(logger as Test.Logger) as Boolean {
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        Application.Properties.setValue("AvwxToken", "MOCK_VFR");
+        try {
+            var view = new GarminMetarView();
+            view.setStation("EGLL");
+            view.onShow(); // Initial fetch; needsRefresh becomes false
+            var reqCountBefore = view.getRequestCountForTest();
+
+            // Simulate returning to view after user pressed Back in menu without selecting
+            view.onShow();
+            if (view.getRequestCountForTest() != reqCountBefore) {
+                logger.debug("Expected onShow to not initiate request when needsRefresh is false");
+                return false;
+            }
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+        }
+    }
+
+    (:test)
+    function testStationReselectionTriggersRefresh(logger as Test.Logger) as Boolean {
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        Application.Properties.setValue("AvwxToken", "MOCK_VFR");
+        try {
+            var view = new GarminMetarView();
+            view.setStation("EGLL");
+            view.onShow(); // Fresh
+
+            // Re-select same station
+            view.setStation("EGLL");
+            if (!view.getNeedsRefreshForTest()) {
+                logger.debug("Expected needsRefresh true on same-station reselection");
+                return false;
+            }
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+        }
     }
 }
 

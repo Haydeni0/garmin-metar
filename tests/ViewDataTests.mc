@@ -1,4 +1,5 @@
 using Toybox.Test;
+import Toybox.Application;
 import Toybox.Lang;
 
 (:test)
@@ -168,5 +169,48 @@ module ViewDataTests {
             return false;
         }
         return true;
+    }
+
+    (:test)
+    function testNonDictionary200PayloadResetsFlightRules(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        // First simulate successful VFR response
+        view.onReceive(200, { "raw" => "EGLL 271950Z AUTO 27012KT 9999 FEW014", "flight_rules" => "VFR" });
+        if (!"VFR".equals(view.getFlightRules())) {
+            logger.debug("Expected flight rules VFR initially");
+            return false;
+        }
+
+        // Now simulate 200 response with string payload instead of dictionary
+        view.onReceive(200, "Unexpected Plain String Payload");
+        if (view.getFlightRules() != null) {
+            logger.debug("Expected flight rules to be reset to null on non-dictionary 200 response");
+            return false;
+        }
+        if (!"Bad Format".equals(view.getMetarCode())) {
+            logger.debug("Expected metar code to be Bad Format");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testInitialLayoutShowsStationLoadingString(logger as Test.Logger) as Boolean {
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        var prevStation = Application.Properties.getValue("TargetStation");
+        Application.Properties.setValue("AvwxToken", "MOCK_VFR");
+        Application.Properties.setValue("TargetStation", "EGWU");
+        try {
+            var view = new GarminMetarView();
+            var code = view.getMetarCode();
+            if (!code.equals("Loading METAR: EGWU...")) {
+                logger.debug("Expected initial metar code 'Loading METAR: EGWU...', got: " + code);
+                return false;
+            }
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+            Application.Properties.setValue("TargetStation", prevStation);
+        }
     }
 }

@@ -19,6 +19,11 @@ class GarminMetarView extends WatchUi.View {
     hidden var mProfile as LayoutProfile or Null = null;
     hidden var mNearbyService as NearbyAirportsService or Null = null;
     hidden var mIsLocatingClosest as Boolean = false;
+    hidden var mNeedsRefresh as Boolean = true;
+    hidden var mIsRequestInFlight as Boolean = false;
+    hidden var mInFlightStation as String or Null = null;
+    hidden var mInFlightIsTaf as Boolean = false;
+    hidden var mRequestCount as Number = 0;
 
     function initialize() {
         View.initialize();
@@ -33,6 +38,14 @@ class GarminMetarView extends WatchUi.View {
         } else {
             mStation = "";
         }
+
+        if (mToken == null || mToken.equals("YOUR_TOKEN_HERE") || mToken.equals("")) {
+            mMetarCode = "Set Token in App Settings";
+        } else if (mStation.equals("")) {
+            mMetarCode = "Locating closest airport...";
+        } else {
+            mMetarCode = (mIsShowingTaf ? "Loading TAF: " : "Loading METAR: ") + mStation + "...";
+        }
     }
 
     // Load your resources here
@@ -42,12 +55,6 @@ class GarminMetarView extends WatchUi.View {
         // Load settings
         mToken = Application.Properties.getValue("AvwxToken");
         loadStationFromSettings();
-        
-        if (mToken == null || mToken.equals("YOUR_TOKEN_HERE") || mToken.equals("")) {
-             mMetarCode = "Set Token in App Settings";
-        } else if (mStation.equals("")) {
-             mMetarCode = "Locating closest airport...";
-        }
 
         mTextAreaMetar = new WatchUi.TextArea({
             :text => mMetarCode,
@@ -84,15 +91,27 @@ class GarminMetarView extends WatchUi.View {
     function updateFromSettings() {
         mToken = Application.Properties.getValue("AvwxToken");
         loadStationFromSettings();
+        mNeedsRefresh = true;
         makeRequest();
     }
 
     // Called when this View is brought to the foreground. Restore
     // the state of this View and prepare it to be shown. This includes
     // loading resources into memory.
-    function onShow() {
+    function onShow() as Void {
         Application.getApp().resetTimer();
-        makeRequest();
+        if (mStation == null || mStation.equals("")) {
+            var target = Application.Properties.getValue("TargetStation");
+            if (target == null || (target instanceof String && target.equals(""))) {
+                locateClosestAirport();
+                return;
+            }
+            mStation = target;
+            mNeedsRefresh = true;
+        }
+        if (mNeedsRefresh) {
+            makeRequest();
+        }
     }
     
     function setStation(station) {
@@ -101,6 +120,7 @@ class GarminMetarView extends WatchUi.View {
             mIsLocatingClosest = false;
         }
         mStation = station;
+        mNeedsRefresh = true;
         mFlightRules = null;
         mScrollY = 0;
         if (mIsShowingTaf) {
@@ -136,6 +156,7 @@ class GarminMetarView extends WatchUi.View {
             }
         }
         WatchUi.requestUpdate();
+        mNeedsRefresh = true;
         makeRequest();
     }
 
@@ -203,6 +224,16 @@ class GarminMetarView extends WatchUi.View {
             return;
         }
 
+        if (mIsRequestInFlight && mInFlightStation != null && mInFlightStation.equals(mStation) && mInFlightIsTaf == mIsShowingTaf) {
+            return;
+        }
+
+        mRequestCount++;
+        mIsRequestInFlight = true;
+        mInFlightStation = mStation;
+        mInFlightIsTaf = mIsShowingTaf;
+        mNeedsRefresh = false;
+
         // Mock data provider for offline testing and deterministic visual verification
         if (mToken.find("MOCK") == 0) {
             var mockData = MockDataProvider.getMockPayload(mToken, mStation, mIsShowingTaf);
@@ -235,6 +266,8 @@ class GarminMetarView extends WatchUi.View {
 
     // Fix: Add explicit types to match the makeWebRequest callback signature requirements
     function onReceive(responseCode as Number, data as Dictionary or String or Null) as Void {
+       mIsRequestInFlight = false;
+       mInFlightStation = null;
        System.println("Response: " + responseCode);
        System.println("Data: " + data);
        
@@ -252,6 +285,7 @@ class GarminMetarView extends WatchUi.View {
                }
            } else {
                mMetarCode = "Bad Format";
+               mFlightRules = null;
            }
        } else {
            mFlightRules = null;
@@ -362,5 +396,17 @@ class GarminMetarView extends WatchUi.View {
 
     function isLocatingClosest() as Boolean {
         return mIsLocatingClosest;
+    }
+
+    function getNeedsRefreshForTest() as Boolean {
+        return mNeedsRefresh;
+    }
+
+    function getIsRequestInFlightForTest() as Boolean {
+        return mIsRequestInFlight;
+    }
+
+    function getRequestCountForTest() as Number {
+        return mRequestCount;
     }
 }
