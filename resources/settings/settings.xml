@@ -16,4 +16,7 @@
             <listEntry value="0">Unlimited</listEntry>
         </settingConfig>
     </setting>
+    <setting propertyKey="@Properties.NearbyCount" title="@Strings.NearbyCountTitle">
+        <settingConfig type="numeric" min="1" max="20" />
+    </setting>
 </settings>

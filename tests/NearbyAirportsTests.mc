@@ -1,6 +1,7 @@
 using Toybox.Test;
 using Toybox.WatchUi;
 using Toybox.Position;
+using Toybox.Application;
 import Toybox.Lang;
 
 (:test)
@@ -487,6 +488,65 @@ module NearbyAirportsTests {
 
         if (holder.mSuccess != false || holder.mData == null || !holder.mData.equals("Bad Format")) {
             logger.debug("Expected callback(false, 'Bad Format'), got success=" + holder.mSuccess + " data=" + holder.mData);
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testNearbyCountConfigurable(logger as Test.Logger) as Boolean {
+        var origCount = Application.Properties.getValue("NearbyCount");
+
+        // 8 raw airports
+        var rawData = [] as Array<Dictionary>;
+        for (var i = 0; i < 8; i++) {
+            rawData.add({
+                "icao" => "KST" + i,
+                "name" => "Station " + i,
+                "distance" => (i * 5.0).toFloat()
+            });
+        }
+
+        // Test custom count = 3
+        Application.Properties.setValue("NearbyCount", 3);
+        var parsed3 = NearbyAirportsService.parseNearbyResponse(rawData);
+        if (parsed3.size() != 3) {
+            logger.debug("Expected 3 parsed airports when NearbyCount=3, got: " + parsed3.size());
+            Application.Properties.setValue("NearbyCount", origCount != null ? origCount : 5);
+            return false;
+        }
+
+        // Test custom count = 7
+        Application.Properties.setValue("NearbyCount", 7);
+        var parsed7 = NearbyAirportsService.parseNearbyResponse(rawData);
+        if (parsed7.size() != 7) {
+            logger.debug("Expected 7 parsed airports when NearbyCount=7, got: " + parsed7.size());
+            Application.Properties.setValue("NearbyCount", origCount != null ? origCount : 5);
+            return false;
+        }
+
+        // Restore
+        Application.Properties.setValue("NearbyCount", origCount != null ? origCount : 5);
+        return true;
+    }
+
+    (:test)
+    function testNearbyCountDefaultIsFive(logger as Test.Logger) as Boolean {
+        var origCount = Application.Properties.getValue("NearbyCount");
+
+        // When invalid or unset, defaults to 5
+        Application.Properties.setValue("NearbyCount", 0);
+        var count0 = NearbyAirportsService.getNearbyLimit();
+        if (count0 != 5) {
+            logger.debug("Expected default 5 when NearbyCount=0, got: " + count0);
+            Application.Properties.setValue("NearbyCount", origCount != null ? origCount : 5);
+            return false;
+        }
+
+        Application.Properties.setValue("NearbyCount", origCount != null ? origCount : 5);
+        var defCount = NearbyAirportsService.getNearbyLimit();
+        if (defCount != 5) {
+            logger.debug("Expected default 5, got: " + defCount);
             return false;
         }
         return true;

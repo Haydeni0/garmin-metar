@@ -123,7 +123,7 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
         menu.addItem(new WatchUi.MenuItem("Nearby Airports", null, "ACTION_NEARBY", null));
 
         var listStr = Application.Properties.getValue("StationList");
-        var stations = StationUtils.getSortedStations(listStr);
+        var stations = StationUtils.getStations(listStr);
         for (var i = 0; i < stations.size(); i++) {
             var code = stations[i];
             menu.addItem(new WatchUi.MenuItem(code, null, code, null));

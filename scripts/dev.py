@@ -83,6 +83,7 @@ def write_simulator_settings(
     auto_exit_seconds: int = 300,
     target_name: str = "TEST.SET",
     simulated_gps: str = "",
+    nearby_count: int = 5,
 ) -> Path:
     """Write mock settings to Connect IQ simulator settings directory."""
     settings = {
@@ -91,6 +92,7 @@ def write_simulator_settings(
         "AvwxToken": token,
         "TargetStation": station,
         "SimulatedGps": simulated_gps,
+        "NearbyCount": nearby_count,
     }
     encoded = encode_ciq_settings(settings)
     temp_dir = Path(os.environ.get("TEMP", os.environ.get("TMP", "C:/Temp")))
@@ -465,6 +467,11 @@ def sync_settings(
         auto_exit = int(raw_auto_exit)
     except ValueError:
         auto_exit = 30
+    raw_nearby_count = env_vars.get("NEARBY_COUNT") or os.environ.get("NEARBY_COUNT", "5")
+    try:
+        nearby_count = int(raw_nearby_count)
+    except ValueError:
+        nearby_count = 5
     sim_gps = env_vars.get("SIMULATED_GPS") or os.environ.get("SIMULATED_GPS", "")
 
     write_simulator_settings(
@@ -474,6 +481,7 @@ def sync_settings(
         auto_exit_seconds=auto_exit,
         target_name=f"{app_name}.SET",
         simulated_gps=sim_gps,
+        nearby_count=nearby_count,
     )
     write_simulator_settings(
         token=token,
@@ -482,6 +490,7 @@ def sync_settings(
         auto_exit_seconds=auto_exit,
         target_name="TEST.SET",
         simulated_gps=sim_gps,
+        nearby_count=nearby_count,
     )
     source_desc = f"from {env_file}" if env_file.is_file() else "using defaults (no .env found)"
     masked_token = (token[:4] + "..." + token[-4:]) if len(token) > 8 and token != "YOUR_TOKEN_HERE" else token

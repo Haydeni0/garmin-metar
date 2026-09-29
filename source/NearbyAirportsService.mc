@@ -122,11 +122,12 @@ class NearbyAirportsService {
             return;
         }
 
+        var limit = getNearbyLimit();
         var url = "https://avwx.rest/api/station/near/" + lat.format("%.4f") + "," + lon.format("%.4f");
         var params = {
             "token" => token,
             "format" => "json",
-            "n" => 5
+            "n" => limit
         };
         var options = {
             :method => Communications.HTTP_REQUEST_METHOD_GET,
@@ -205,9 +206,20 @@ class NearbyAirportsService {
         }
     }
 
+    static function getNearbyLimit() as Number {
+        try {
+            var count = Application.Properties.getValue("NearbyCount");
+            if (count != null && count instanceof Number && count > 0) {
+                return count as Number;
+            }
+        } catch (e) {
+        }
+        return 5;
+    }
+
     static function parseNearbyResponse(data as Array) as Array<Dictionary> {
         var result = [] as Array<Dictionary>;
-        var maxCount = 5;
+        var maxCount = getNearbyLimit();
         if (data.size() < maxCount) {
             maxCount = data.size();
         }
@@ -271,12 +283,21 @@ class NearbyAirportsService {
     }
 
     static function getMockNearbyAirports() as Array<Dictionary> {
-        return [
+        var allMocks = [
             {:icao => "EGLL", :name => "Heathrow", :distance => 4.2},
             {:icao => "EGWU", :name => "Northolt", :distance => 6.1},
             {:icao => "EGUB", :name => "Benson", :distance => 18.5},
             {:icao => "EGVO", :name => "Odiham", :distance => 24.0},
             {:icao => "EGLC", :name => "London City", :distance => 26.8}
         ];
+        var limit = getNearbyLimit();
+        if (allMocks.size() <= limit) {
+            return allMocks;
+        }
+        var sliced = [] as Array<Dictionary>;
+        for (var i = 0; i < limit; i++) {
+            sliced.add(allMocks[i]);
+        }
+        return sliced;
     }
 }

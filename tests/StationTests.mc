@@ -243,16 +243,27 @@ module StationTests {
     }
 
     (:test)
-    function testGetSortedStations(logger as Test.Logger) as Boolean {
-        var input = "KJFK, EGLL,  EGWU , EGUB";
-        var sorted = StationUtils.getSortedStations(input);
+    function testGetStationsPreservesConfiguredOrder(logger as Test.Logger) as Boolean {
+        var input = "EGWU,EGLL,EGUB,EGVO,KJFK,KLAX";
+        var stations = StationUtils.getStations(input);
 
-        if (sorted.size() != 4) {
-            logger.debug("Expected size 4, got: " + sorted.size());
+        if (stations.size() != 6) {
+            logger.debug("Expected size 6, got: " + stations.size());
             return false;
         }
-        if (!sorted[0].equals("EGLL") || !sorted[1].equals("EGUB") || !sorted[2].equals("EGWU") || !sorted[3].equals("KJFK")) {
-            logger.debug("Sort order mismatch: " + sorted);
+        if (!stations[0].equals("EGWU") || !stations[1].equals("EGLL") || !stations[2].equals("EGUB") ||
+            !stations[3].equals("EGVO") || !stations[4].equals("KJFK") || !stations[5].equals("KLAX")) {
+            logger.debug("Configured order mismatch: " + stations);
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testGetStationsNullHandledSafely(logger as Test.Logger) as Boolean {
+        var stations = StationUtils.getStations(null);
+        if (stations.size() != 0) {
+            logger.debug("Expected empty array for null listStr");
             return false;
         }
         return true;

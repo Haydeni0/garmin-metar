@@ -7,4 +7,5 @@
     <string id="AvwxTokenTitle">AVWX API Token</string>
     <string id="TargetStationTitle">Default Station (blank for closest)</string>
     <string id="StationListTitle">Station List (comma separated)</string>
+    <string id="NearbyCountTitle">Nearby Airports Count</string>
 </resources>

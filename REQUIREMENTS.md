@@ -46,8 +46,8 @@ Living specification defining user experience, device behaviors, settings, and c
 - **Verification**: `AppLifecycleTests.testInitialViewContract`, `StationTests.testUnsetTargetStationTriggersClosestAirport`, `StationTests.testClosestAirportFailureShowsFallback`, `StationTests.testUnsetTargetStationPropertyDefaultsToClosest`, `StationTests.testManualSelectionDuringLocatingIsNotOverwritten`
 
 ### [REQ-STN-02] Station Selection Menu
-- **Statement**: Station selection menu MUST open via `onMenu()` (Menu key on 5-button devices) or screen tap (`onTap()` on touchscreens). The top item MUST be `"Nearby Airports"`, followed by configured stations from `StationList`.
-- **Verification**: `DelegateTests.testOnMenuOpensStationMenu`, `DelegateTests.testTapOpensStationMenu`, `StationTests.testParseSimpleList`, `StationTests.testParseWithSpaces`
+- **Statement**: Station selection menu MUST open via `onMenu()` (Menu key on 5-button devices) or screen tap (`onTap()` on touchscreens). The top item MUST be `"Nearby Airports"`, followed by configured stations from `StationList` in their exact configured order.
+- **Verification**: `DelegateTests.testOnMenuOpensStationMenu`, `DelegateTests.testTapOpensStationMenu`, `StationTests.testParseSimpleList`, `StationTests.testParseWithSpaces`, `StationTests.testGetStationsPreservesConfiguredOrder`, `StationTests.testGetStationsNullHandledSafely`
 
 ### [REQ-STN-03] Session-Only Selection Scope
 - **Statement**: Selecting an airport updates the view and triggers weather queries for the active session only; it MUST NOT overwrite the configured `TargetStation` property.
@@ -68,8 +68,8 @@ Living specification defining user experience, device behaviors, settings, and c
 - **Verification**: `NearbyAirportsTests.testGpsTimeoutTriggersError`, `NearbyAirportsTests.testNearbyMenuDelegateErrorHandling`, `NearbyAirportsTests.testNearbyMenuDelegateOnBackCancelsSearch`, `StationTests.testSetStationCancelsActiveGpsSearch`
 
 ### [REQ-GPS-04] AVWX Station Query & Result Limit
-- **Statement**: Service MUST query `https://avwx.rest/api/station/near/{lat},{lon}?n=5` and parse up to 5 reporting airfields using `"nautical_miles"`, `"distance"`, or `"miles"`.
-- **Verification**: `NearbyAirportsTests.testParseNearbyResponseNauticalMiles`, `NearbyAirportsTests.testParseNearbyResponseNested`, `NearbyAirportsTests.testParseNearbyResponseFlat`, `NearbyAirportsTests.testParseNearbyResponseClampedToFive`, `NearbyAirportsTests.testParseNearbyResponseEmpty`
+- **Statement**: Service MUST query `https://avwx.rest/api/station/near/{lat},{lon}?n={NearbyCount}` and parse up to `NearbyCount` reporting airfields (default 5, configurable 1-20 in settings) using `"nautical_miles"`, `"distance"`, or `"miles"`.
+- **Verification**: `NearbyAirportsTests.testParseNearbyResponseNauticalMiles`, `NearbyAirportsTests.testParseNearbyResponseNested`, `NearbyAirportsTests.testParseNearbyResponseFlat`, `NearbyAirportsTests.testParseNearbyResponseClampedToFive`, `NearbyAirportsTests.testParseNearbyResponseEmpty`, `NearbyAirportsTests.testNearbyCountConfigurable`, `NearbyAirportsTests.testNearbyCountDefaultIsFive`
 
 ### [REQ-GPS-05] Menu Item Formatting with Distance
 - **Statement**: Nearby airport items MUST display the ICAO code and distance in nautical miles in the primary label (`<ICAO> (<dist>nm)`, e.g. `"EGLL (4.2nm)"`) to prevent truncation, with airport name in the sublabel.
@@ -133,8 +133,9 @@ Living specification defining user experience, device behaviors, settings, and c
   - `TargetStation` (string, default `"EGWU"`, title `"Default Station (blank for closest)"`)
   - `StationList` (string, default `"EGWU,EGLL,EGUB,EGVO,KJFK,KLAX"`)
   - `AutoExitSeconds` (number, default `30`)
+  - `NearbyCount` (number, default `5`, title `"Nearby Airports Count"`)
   - `SimulatedGps` (string, default `""`)
-- **Verification**: `ViewDataTests.testMissingTokenPrompt`, `StationTests.testParseSimpleList`, `StationTests.testUnsetTargetStationPropertyDefaultsToClosest`, `AppLifecycleTests.testTimerStartsByDefault`
+- **Verification**: `ViewDataTests.testMissingTokenPrompt`, `StationTests.testParseSimpleList`, `StationTests.testUnsetTargetStationPropertyDefaultsToClosest`, `AppLifecycleTests.testTimerStartsByDefault`, `NearbyAirportsTests.testNearbyCountConfigurable`, `NearbyAirportsTests.testNearbyCountDefaultIsFive`
 
 ## 9. Developer Tooling & Environment
 
