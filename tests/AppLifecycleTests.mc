@@ -157,5 +157,34 @@ module AppLifecycleTests {
         }
         return true;
     }
+
+    (:test)
+    function testMenuPushPausesTimerAndPopResumesTimer(logger as Test.Logger) as Boolean {
+        var app = Application.getApp() as GarminMetarApp;
+        app.resetTimer();
+
+        if (!app.hasActiveTimer()) {
+            logger.debug("Expected active timer before menu push");
+            return false;
+        }
+
+        var view = new GarminMetarView();
+        view.onHide();
+
+        if (app.hasActiveTimer()) {
+            logger.debug("Expected timer to be paused/stopped when view is hidden by menu");
+            return false;
+        }
+
+        view.onShow();
+
+        if (!app.hasActiveTimer()) {
+            logger.debug("Expected timer to resume when view is restored from menu");
+            return false;
+        }
+
+        return true;
+    }
 }
+
 

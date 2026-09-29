@@ -56,6 +56,13 @@ class GarminMetarApp extends Application.AppBase {
         }
     }
     
+    function stopTimer() as Void {
+        if (mTimer != null) {
+            mTimer.stop();
+            mTimer = null;
+        }
+    }
+
     function hasActiveTimer() as Boolean {
         return mTimer != null;
     }

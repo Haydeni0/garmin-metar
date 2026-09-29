@@ -179,11 +179,16 @@ class GarminMetarView extends WatchUi.View {
     // state of this View here. This includes freeing resources from
     // memory.
     function onHide() {
+        var app = Application.getApp();
+        if (app != null && app has :stopTimer) {
+            app.stopTimer();
+        }
         if (mNearbyService != null && mIsLocatingClosest) {
             mNearbyService.cancel();
             mIsLocatingClosest = false;
         }
     }
+
 
     function makeRequest() {
         if (mToken == null || mToken.equals("YOUR_TOKEN_HERE") || mToken.equals("")) {

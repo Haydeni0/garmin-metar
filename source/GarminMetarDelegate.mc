@@ -158,4 +158,9 @@ class StationMenuDelegate extends WatchUi.Menu2InputDelegate {
         mView.makeRequest();
         WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
     }
+
+    function onBack() as Void {
+        WatchUi.popView(WatchUi.SLIDE_DOWN);
+    }
 }
+
