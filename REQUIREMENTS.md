@@ -28,8 +28,9 @@ Living specification defining user experience, device behaviors, settings, and c
 ## 2. Power & Lifecycle Management
 
 ### [REQ-PWR-01] Auto-Exit Inactivity Timer
-- **Statement**: App MUST exit automatically after an inactivity duration specified by `AutoExitSeconds` (default 30 seconds; configurable to 30, 60, 120, or 0 to disable). While modal menus (Station selection, Nearby discovery) are displayed, the primary view is hidden and the app inactivity countdown timer MUST be paused (`stopTimer()`). Upon dismissing or completing menu selection and returning to the primary view (`onShow()`), the countdown timer MUST resume fresh.
-- **Verification**: `AppLifecycleTests.testTimerStartsByDefault`, `AppLifecycleTests.testTimerStopOnAppStop`, `AppLifecycleTests.testTimerDisabledWhenZero`, `AppLifecycleTests.testSettingsChangedRefreshesTimer`, `AppLifecycleTests.testMenuPushPausesTimerAndPopResumesTimer`
+- **Statement**: App MUST exit automatically after an inactivity duration specified by `AutoExitSeconds` (default 30 seconds; configurable to 30, 60, 120, or 0 to disable). The inactivity timer MUST run during both the primary weather view and modal menus (Station selection, Nearby discovery). User interactions in modal menus (opening the menu, wrapping, paging, or selecting) MUST reset the inactivity timer countdown.
+- **Verification**: `AppLifecycleTests.testTimerStartsByDefault`, `AppLifecycleTests.testTimerStopOnAppStop`, `AppLifecycleTests.testTimerDisabledWhenZero`, `AppLifecycleTests.testSettingsChangedRefreshesTimer`, `AppLifecycleTests.testMenuRetainsActiveInactivityTimer`, `AppLifecycleTests.testStationMenuOpeningResetsTimer`, `AppLifecycleTests.testStationMenuNavigationResetsTimer`, `AppLifecycleTests.testNearbyMenuNavigationResetsTimer`
+
 
 
 ### [REQ-PWR-02] Inactivity Timer Reset

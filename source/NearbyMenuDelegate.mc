@@ -16,10 +16,12 @@ class NearbyMenuDelegate extends WatchUi.Menu2InputDelegate {
     }
 
     function startSearch() as Void {
+        Application.getApp().resetTimer();
         mService.searchNearby(method(:onNearbyResult));
     }
 
     function onNearbyResult(success as Boolean, data as Object) as Void {
+        Application.getApp().resetTimer();
         // Remove previous status item
         var searchIdx = mMenu.findItemById("STATUS_SEARCHING");
         if (searchIdx != -1 && searchIdx != null) {
@@ -86,11 +88,37 @@ class NearbyMenuDelegate extends WatchUi.Menu2InputDelegate {
     }
 
     function onBack() as Void {
+        Application.getApp().resetTimer();
         mService.cancel();
         WatchUi.popView(WatchUi.SLIDE_RIGHT);
+    }
+
+    function onWrap(key as WatchUi.Key) as Boolean {
+        Application.getApp().resetTimer();
+        return true;
+    }
+
+    function onNextPage() as Boolean {
+        Application.getApp().resetTimer();
+        return false;
+    }
+
+    function onPreviousPage() as Boolean {
+        Application.getApp().resetTimer();
+        return false;
+    }
+
+    function onTitle() as Void {
+        Application.getApp().resetTimer();
+    }
+
+    function onFooter() as Void {
+        Application.getApp().resetTimer();
     }
 
     function getService() as NearbyAirportsService {
         return mService;
     }
 }
+
+

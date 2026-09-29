@@ -159,7 +159,7 @@ module AppLifecycleTests {
     }
 
     (:test)
-    function testMenuPushPausesTimerAndPopResumesTimer(logger as Test.Logger) as Boolean {
+    function testMenuRetainsActiveInactivityTimer(logger as Test.Logger) as Boolean {
         var app = Application.getApp() as GarminMetarApp;
         app.resetTimer();
 
@@ -171,20 +171,139 @@ module AppLifecycleTests {
         var view = new GarminMetarView();
         view.onHide();
 
-        if (app.hasActiveTimer()) {
-            logger.debug("Expected timer to be paused/stopped when view is hidden by menu");
+        if (!app.hasActiveTimer()) {
+            logger.debug("Expected timer to remain active when view is hidden by menu");
             return false;
         }
 
         view.onShow();
 
         if (!app.hasActiveTimer()) {
-            logger.debug("Expected timer to resume when view is restored from menu");
+            logger.debug("Expected timer to remain active when view is restored from menu");
+            return false;
+        }
+
+        return true;
+    }
+
+    (:test)
+    function testStationMenuOpeningResetsTimer(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new GarminMetarDelegate(view);
+        var app = Application.getApp() as GarminMetarApp;
+        var countBefore = app.getTimerResetCount();
+
+        delegate.pushStationMenu();
+        if (app.getTimerResetCount() <= countBefore) {
+            logger.debug("Expected pushStationMenu to reset timer");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testStationMenuNavigationResetsTimer(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var delegate = new StationMenuDelegate(view);
+        var app = Application.getApp() as GarminMetarApp;
+
+        var count = app.getTimerResetCount();
+        delegate.onWrap(WatchUi.KEY_DOWN);
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected onWrap to reset timer");
+            return false;
+        }
+
+        count = app.getTimerResetCount();
+        delegate.onNextPage();
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected onNextPage to reset timer");
+            return false;
+        }
+
+        count = app.getTimerResetCount();
+        delegate.onPreviousPage();
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected onPreviousPage to reset timer");
+            return false;
+        }
+
+        count = app.getTimerResetCount();
+        delegate.onTitle();
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected onTitle to reset timer");
+            return false;
+        }
+
+        count = app.getTimerResetCount();
+        delegate.onFooter();
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected onFooter to reset timer");
+            return false;
+        }
+
+        count = app.getTimerResetCount();
+        delegate.onBack();
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected onBack to reset timer");
+            return false;
+        }
+
+        return true;
+    }
+
+    (:test)
+    function testNearbyMenuNavigationResetsTimer(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var menu = new WatchUi.Menu2({:title=>"Nearby"});
+        var delegate = new NearbyMenuDelegate(view, menu);
+        var app = Application.getApp() as GarminMetarApp;
+
+        var count = app.getTimerResetCount();
+        delegate.onWrap(WatchUi.KEY_DOWN);
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected NearbyMenuDelegate onWrap to reset timer");
+            return false;
+        }
+
+        count = app.getTimerResetCount();
+        delegate.onNextPage();
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected NearbyMenuDelegate onNextPage to reset timer");
+            return false;
+        }
+
+        count = app.getTimerResetCount();
+        delegate.onPreviousPage();
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected NearbyMenuDelegate onPreviousPage to reset timer");
+            return false;
+        }
+
+        count = app.getTimerResetCount();
+        delegate.onTitle();
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected NearbyMenuDelegate onTitle to reset timer");
+            return false;
+        }
+
+        count = app.getTimerResetCount();
+        delegate.onFooter();
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected NearbyMenuDelegate onFooter to reset timer");
+            return false;
+        }
+
+        count = app.getTimerResetCount();
+        delegate.onBack();
+        if (app.getTimerResetCount() <= count) {
+            logger.debug("Expected NearbyMenuDelegate onBack to reset timer");
             return false;
         }
 
         return true;
     }
 }
+
 
 

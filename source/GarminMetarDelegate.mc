@@ -1,9 +1,10 @@
 using Toybox.WatchUi;
 using Toybox.Application;
-using Toybox.Math;
 import Toybox.Lang;
 
 class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
+
+
 
     hidden var mView;
 
@@ -117,6 +118,7 @@ class GarminMetarDelegate extends WatchUi.BehaviorDelegate {
     }
 
     function pushStationMenu() as Boolean {
+        Application.getApp().resetTimer();
         var menu = new WatchUi.Menu2({:title=>"Select Station"});
         
         // Add Nearby Airports discovery as top action
@@ -160,7 +162,34 @@ class StationMenuDelegate extends WatchUi.Menu2InputDelegate {
     }
 
     function onBack() as Void {
+        Application.getApp().resetTimer();
         WatchUi.popView(WatchUi.SLIDE_DOWN);
     }
+
+    function onWrap(key as WatchUi.Key) as Boolean {
+        Application.getApp().resetTimer();
+        return true;
+    }
+
+    function onNextPage() as Boolean {
+        Application.getApp().resetTimer();
+        return false;
+    }
+
+    function onPreviousPage() as Boolean {
+        Application.getApp().resetTimer();
+        return false;
+    }
+
+    function onTitle() as Void {
+        Application.getApp().resetTimer();
+    }
+
+    function onFooter() as Void {
+        Application.getApp().resetTimer();
+    }
 }
+
+
+
 
