@@ -29,4 +29,9 @@ class InactivityMenu2Delegate extends WatchUi.Menu2InputDelegate {
     function onFooter() as Void {
         Application.getApp().resetTimer();
     }
+
+    function onBack() as Void {
+        Application.getApp().resetTimer();
+        WatchUi.popView(WatchUi.SLIDE_DOWN);
+    }
 }

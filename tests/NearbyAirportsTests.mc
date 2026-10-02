@@ -623,6 +623,7 @@ module NearbyAirportsTests {
     function testCallbackClearedAfterSuccessfulReceive(logger as Test.Logger) as Boolean {
         var service = new NearbyAirportsService();
         var holder = new MockNearbyCallbackHolder();
+        service.setCallbackForTest(holder.method(:callback));
         var payload = [{ "icao" => "EGLL", "name" => "Heathrow", "distance" => 5.0 }] as Object;
         service.onReceiveNearby(200, payload as Dictionary or String or Null);
         if (service.getCallbackForTest() != null) {
@@ -642,6 +643,108 @@ module NearbyAirportsTests {
             logger.debug("Expected callback to be null after error notification");
             return false;
         }
+        return true;
+    }
+
+    (:test)
+    function testEmptyArrayTriggersNoAirportsFoundError(logger as Test.Logger) as Boolean {
+        var service = new NearbyAirportsService();
+        var holder = new MockNearbyCallbackHolder();
+        service.setCallbackForTest(holder.method(:callback));
+        var emptyPayload = [] as Object;
+        service.onReceiveNearby(200, emptyPayload as Dictionary or String or Null);
+        if (holder.mSuccess != false) {
+            logger.debug("Expected callback success to be false, got: " + holder.mSuccess);
+            return false;
+        }
+        if (!"No Airports Found".equals(holder.mData)) {
+            logger.debug("Expected error message 'No Airports Found', got: " + holder.mData);
+            return false;
+        }
+        if (service.getCallbackForTest() != null) {
+            logger.debug("Expected callback to be null after error notification");
+            return false;
+        }
+        if (service.isSearching()) {
+            logger.debug("Expected isSearching to be false");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testSearchNearbyWithoutTokenRejectsImmediatelyWithoutGps(logger as Test.Logger) as Boolean {
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        var prevSimGps = Application.Properties.getValue("SimulatedGps");
+        Application.Properties.setValue("AvwxToken", "");
+        Application.Properties.setValue("SimulatedGps", "");
+        try {
+            var service = new NearbyAirportsService();
+            var holder = new MockNearbyCallbackHolder();
+            service.searchNearby(holder.method(:callback));
+            if (holder.mSuccess != false) {
+                logger.debug("Expected callback success to be false, got: " + holder.mSuccess);
+                return false;
+            }
+            if (!"Token Missing".equals(holder.mData)) {
+                logger.debug("Expected error 'Token Missing', got: " + holder.mData);
+                return false;
+            }
+            if (service.isSearching()) {
+                logger.debug("Expected isSearching to be false");
+                return false;
+            }
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+            Application.Properties.setValue("SimulatedGps", prevSimGps);
+        }
+    }
+
+    (:test)
+    function testNearbyMenuDelegateOnSelectHandling(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        var menu = new WatchUi.Menu2({:title=>"Nearby Airports"});
+        var delegate = new NearbyMenuDelegate(view, menu);
+
+        // 1. Selecting STATUS_SEARCHING should be a no-op
+        var initialStation = view.getStation();
+        var searchingItem = new WatchUi.MenuItem("Searching...", null, "STATUS_SEARCHING", null);
+        delegate.onSelect(searchingItem);
+        if (!initialStation.equals(view.getStation())) {
+            logger.debug("Expected station unchanged on STATUS_SEARCHING");
+            return false;
+        }
+
+        // 2. Selecting ACTION_RETRY should start search
+        var retryItem = new WatchUi.MenuItem("Select to retry", null, "ACTION_RETRY", null);
+        delegate.onSelect(retryItem);
+        if (!delegate.getService().isSearching()) {
+            logger.debug("Expected ACTION_RETRY to initiate search");
+            return false;
+        }
+        delegate.getService().cancel(); // clean up
+
+        // 3. Selecting valid airport item sets station and flags refresh
+        // Clear needsRefresh first so we can verify transition to true
+        view.onShow(); // resets needsRefresh to false
+
+        // Push 2 dummy views so popView() twice succeeds
+        WatchUi.pushView(new WatchUi.View(), null, WatchUi.SLIDE_IMMEDIATE);
+        WatchUi.pushView(new WatchUi.View(), null, WatchUi.SLIDE_IMMEDIATE);
+
+        var airportItem = new WatchUi.MenuItem("EGLL (4.2nm)", "Heathrow", "EGLL", null);
+        delegate.onSelect(airportItem);
+
+        if (!view.getNeedsRefreshForTest()) {
+            logger.debug("Expected needsRefresh to be true after selecting airport");
+            return false;
+        }
+        if (!"EGLL".equals(view.getStation())) {
+            logger.debug("Expected station to be EGLL, got: " + view.getStation());
+            return false;
+        }
+
         return true;
     }
 }

@@ -159,11 +159,6 @@ class StationMenuDelegate extends InactivityMenu2Delegate {
         mView.setStation(id);
         WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
     }
-
-    function onBack() as Void {
-        Application.getApp().resetTimer();
-        WatchUi.popView(WatchUi.SLIDE_DOWN);
-    }
 }
 
 

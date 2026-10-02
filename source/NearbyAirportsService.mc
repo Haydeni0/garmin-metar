@@ -32,6 +32,11 @@ class NearbyAirportsService {
             return;
         }
 
+        if (token == null || !(token instanceof String) || token.equals("YOUR_TOKEN_HERE") || token.equals("")) {
+            notifyError("Token Missing");
+            return;
+        }
+
         // Check if Positioning is available on device
         if (!(Toybox has :Position)) {
             notifyError("No GPS Available");
@@ -146,13 +151,16 @@ class NearbyAirportsService {
         if (responseCode == 200 && data != null && data instanceof Array) {
             var rawArr = data as Array;
             var airports = parseNearbyResponse(rawArr);
-            var cb = mCallback;
-            mCallback = null;
             if (airports.size() == 0) {
                 notifyError("No Airports Found");
-            } else if (cb != null) {
+                return;
+            }
+            var cb = mCallback;
+            mCallback = null;
+            if (cb != null) {
                 cb.invoke(true, airports);
             }
+            return;
         } else if (responseCode == 200) {
             notifyError("Bad Format");
         } else if (responseCode == 401 || responseCode == 403) {

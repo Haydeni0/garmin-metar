@@ -5,6 +5,20 @@ using Toybox.System;
 using Toybox.Application;
 import Toybox.Lang;
 
+class MetarWebRequestCallback {
+    hidden var mView as GarminMetarView;
+    hidden var mRequestId as Number;
+
+    function initialize(view as GarminMetarView, requestId as Number) {
+        mView = view;
+        mRequestId = requestId;
+    }
+
+    function onReceive(responseCode as Number, data as Dictionary or String or Null) as Void {
+        mView.handleWebResponse(responseCode, data, mRequestId);
+    }
+}
+
 class GarminMetarView extends WatchUi.View {
 
     hidden var mMetarCode = "Loading...";
@@ -24,6 +38,7 @@ class GarminMetarView extends WatchUi.View {
     hidden var mInFlightStation as String or Null = null;
     hidden var mInFlightIsTaf as Boolean = false;
     hidden var mRequestCount as Number = 0;
+    hidden var mCurrentRequestId as Number = 0;
 
     function initialize() {
         View.initialize();
@@ -229,6 +244,7 @@ class GarminMetarView extends WatchUi.View {
         }
 
         mRequestCount++;
+        mCurrentRequestId++;
         mIsRequestInFlight = true;
         mInFlightStation = mStation;
         mInFlightIsTaf = mIsShowingTaf;
@@ -237,10 +253,11 @@ class GarminMetarView extends WatchUi.View {
         // Mock data provider for offline testing and deterministic visual verification
         if (mToken.find("MOCK") == 0) {
             var mockData = MockDataProvider.getMockPayload(mToken, mStation, mIsShowingTaf);
+            var currentId = mCurrentRequestId;
             if (mockData.hasKey("status") && mockData["status"] != 200) {
-                onReceive(mockData["status"], mockData);
+                handleWebResponse(mockData["status"], mockData, currentId);
             } else {
-                onReceive(200, mockData);
+                handleWebResponse(200, mockData, currentId);
             }
             return;
         }
@@ -260,8 +277,18 @@ class GarminMetarView extends WatchUi.View {
         };
 
         System.println("Making Request to: " + url);
-        // Note: In newer Monkey C SDKs, callback scope is handled automatically or via method()
-        Communications.makeWebRequest(url, params, options, method(:onReceive));
+        var cb = new MetarWebRequestCallback(self, mCurrentRequestId);
+        Communications.makeWebRequest(url, params, options, cb.method(:onReceive));
+    }
+
+    function handleWebResponse(responseCode as Number, data as Dictionary or String or Null, requestId as Number) as Void {
+        if (requestId != mCurrentRequestId) {
+            System.println("Discarding stale response for request: " + requestId + " (current is " + mCurrentRequestId + ")");
+            return;
+        }
+        mIsRequestInFlight = false;
+        mInFlightStation = null;
+        onReceive(responseCode, data);
     }
 
     // Fix: Add explicit types to match the makeWebRequest callback signature requirements
@@ -275,12 +302,13 @@ class GarminMetarView extends WatchUi.View {
            if (data instanceof Dictionary) {
                if (data.hasKey("raw") && data["raw"] instanceof String) {
                    mMetarCode = data["raw"] as String;
+                   if (data.hasKey("flight_rules") && data["flight_rules"] instanceof String) {
+                       mFlightRules = data["flight_rules"] as String;
+                   } else {
+                       mFlightRules = null;
+                   }
                } else {
                    mMetarCode = "Bad Format";
-               }
-               if (data.hasKey("flight_rules") && data["flight_rules"] instanceof String) {
-                   mFlightRules = data["flight_rules"] as String;
-               } else {
                    mFlightRules = null;
                }
            } else {
@@ -408,5 +436,9 @@ class GarminMetarView extends WatchUi.View {
 
     function getRequestCountForTest() as Number {
         return mRequestCount;
+    }
+
+    function getCurrentRequestIdForTest() as Number {
+        return mCurrentRequestId;
     }
 }

@@ -213,4 +213,34 @@ module ViewDataTests {
             Application.Properties.setValue("TargetStation", prevStation);
         }
     }
+
+    (:test)
+    function testMissingRawKeyWithValidFlightRulesResetsBadge(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        // First simulate successful VFR payload
+        var validPayload = {
+            "raw" => "EGLL 271950Z AUTO 27012KT 9999 FEW014",
+            "flight_rules" => "VFR"
+        };
+        view.onReceive(200, validPayload);
+        if (!"VFR".equals(view.getFlightRules())) {
+            logger.debug("Expected flight rules to be VFR");
+            return false;
+        }
+
+        // Now simulate corrupt payload with flight_rules present but raw missing
+        var corruptPayload = {
+            "flight_rules" => "VFR"
+        };
+        view.onReceive(200, corruptPayload);
+        if (!"Bad Format".equals(view.getMetarCode())) {
+            logger.debug("Expected metar code to be 'Bad Format', got: " + view.getMetarCode());
+            return false;
+        }
+        if (view.getFlightRules() != null) {
+            logger.debug("Expected flight rules to be null when raw is missing, got: " + view.getFlightRules());
+            return false;
+        }
+        return true;
+    }
 }

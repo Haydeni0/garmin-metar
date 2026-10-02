@@ -352,6 +352,80 @@ module StationTests {
             Application.Properties.setValue("AvwxToken", prevToken);
         }
     }
+
+    (:test)
+    function testStaleResponseIgnoredOnStationChange(logger as Test.Logger) as Boolean {
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        // Use a non-MOCK token so makeRequest() does not resolve synchronously
+        Application.Properties.setValue("AvwxToken", "VALID_LIVE_TOKEN_FOR_TEST");
+        try {
+            var view = new GarminMetarView();
+            view.setStation("EGLL");
+            view.makeRequest(); // Request ID 1 (in flight)
+            var firstReqId = view.getCurrentRequestIdForTest();
+
+            if (!view.getIsRequestInFlightForTest()) {
+                logger.debug("Expected request 1 to be in flight");
+                return false;
+            }
+
+            // User switches to EGWU while first request is in flight
+            view.setStation("EGWU");
+            view.makeRequest(); // Request ID 2 (supersedes request 1)
+            var secondReqId = view.getCurrentRequestIdForTest();
+
+            if (secondReqId <= firstReqId) {
+                logger.debug("Expected second request ID to be greater than first");
+                return false;
+            }
+
+            // Simulate delayed arrival of response for first request (EGLL)
+            var stalePayload = {
+                "raw" => "EGLL 271950Z AUTO 27012KT 9999 FEW014",
+                "flight_rules" => "VFR"
+            };
+            view.handleWebResponse(200, stalePayload, firstReqId);
+
+            // Active view must NOT adopt stale EGLL payload
+            var code = view.getMetarCode();
+            if (code.find("EGLL") != null) {
+                logger.debug("Stale response was not discarded; view code: " + code);
+                return false;
+            }
+            if (!code.equals("Loading METAR: EGWU...")) {
+                logger.debug("Expected loading text for EGWU, got: " + code);
+                return false;
+            }
+            if (view.getFlightRules() != null) {
+                logger.debug("Expected flight rules to remain null while waiting for station B");
+                return false;
+            }
+            // Request 2 must still be tracked as in flight
+            if (!view.getIsRequestInFlightForTest()) {
+                logger.debug("Expected request 2 to remain in flight after stale response dropped");
+                return false;
+            }
+
+            // Now deliver response for second request (EGWU)
+            var freshPayload = {
+                "raw" => "EGWU 271950Z 24008KT 9999 CAVOK",
+                "flight_rules" => "VFR"
+            };
+            view.handleWebResponse(200, freshPayload, secondReqId);
+            if (!view.getMetarCode().equals("EGWU 271950Z 24008KT 9999 CAVOK")) {
+                logger.debug("Fresh response not applied; got: " + view.getMetarCode());
+                return false;
+            }
+            if (view.getIsRequestInFlightForTest()) {
+                logger.debug("Expected request in flight to be false after matching response");
+                return false;
+            }
+
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+        }
+    }
 }
 
 

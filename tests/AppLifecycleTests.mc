@@ -336,6 +336,25 @@ module AppLifecycleTests {
 
         return true;
     }
+
+    (:test)
+    function testInactivityMenu2DelegateOnBackResetsTimer(logger as Test.Logger) as Boolean {
+        var app = Application.getApp() as GarminMetarApp;
+        app.resetTimer();
+        var countBefore = app.getTimerResetCount();
+
+        // Push dummy view so popView has a target
+        WatchUi.pushView(new WatchUi.View(), null, WatchUi.SLIDE_IMMEDIATE);
+
+        var delegate = new InactivityMenu2Delegate();
+        delegate.onBack();
+
+        if (app.getTimerResetCount() <= countBefore) {
+            logger.debug("Expected onBack to reset timer, before: " + countBefore + ", after: " + app.getTimerResetCount());
+            return false;
+        }
+        return true;
+    }
 }
 
 

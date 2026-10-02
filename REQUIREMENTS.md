@@ -23,7 +23,8 @@ Living specification defining user experience, device behaviors, settings, and c
   - Other HTTP status: `"Error: <code>"`
   - Bluetooth timeout: `"Error: -104"`
   - Corrupt payload: `"Bad Format"`
-- **Verification**: `ViewDataTests.testMissingTokenPrompt`, `ViewDataTests.testParseAuthError401`, `ViewDataTests.testParseGenericHttpError`, `ViewDataTests.testParseBleTimeoutError`, `ViewDataTests.testParseMissingRawKey`
+  When a 200 response payload lacks a valid raw report string, the view MUST display `"Bad Format"` and clear any active flight rules category badge (`mFlightRules = null`).
+- **Verification**: `ViewDataTests.testMissingTokenPrompt`, `ViewDataTests.testParseAuthError401`, `ViewDataTests.testParseGenericHttpError`, `ViewDataTests.testParseBleTimeoutError`, `ViewDataTests.testParseMissingRawKey`, `ViewDataTests.testMissingRawKeyWithValidFlightRulesResetsBadge`
 
 ## 2. Power & Lifecycle Management
 
@@ -58,16 +59,16 @@ Living specification defining user experience, device behaviors, settings, and c
 ## 4. Nearby Airport Discovery (GPS)
 
 ### [REQ-GPS-01] Discovery Menu Activation
-- **Statement**: Selecting `"Nearby Airports"` MUST push a `Menu2` titled `"Nearby Airports"` with a `"Searching..."` status item while coordinates and airfields are being queried.
-- **Verification**: `NearbyAirportsTests.testStationMenuDelegateSelectsNearby`, `NearbyAirportsTests.testNearbyMenuDelegatePopulatesItems`
+- **Statement**: Selecting `"Nearby Airports"` MUST push a `Menu2` titled `"Nearby Airports"` with a `"Searching..."` status item while coordinates and airfields are being queried. Selecting an airfield item in the Nearby Airports menu MUST assign the station, mark data for refresh, and pop navigation back to the primary weather view.
+- **Verification**: `NearbyAirportsTests.testStationMenuDelegateSelectsNearby`, `NearbyAirportsTests.testNearbyMenuDelegatePopulatesItems`, `NearbyAirportsTests.testNearbyMenuDelegateOnSelectHandling`
 
 ### [REQ-GPS-02] Coordinate Bounds & Sentinel Validation
 - **Statement**: Acquired GPS coordinates MUST be validated within geographic bounds (`[-90.0, 90.0]` latitude, `[-180.0, 180.0]` longitude). Garmin's uninitialized sentinel coordinate `[180.0, 180.0]` MUST be rejected as invalid.
 - **Verification**: `NearbyAirportsTests.testCoordinateValidation`, `NearbyAirportsTests.testSimulatorUninitializedLocationRejected`, `NearbyAirportsTests.testFetchFromAvwxRejectsSentinelCoordinates`, `NearbyAirportsTests.testFetchFromAvwxRejectsOutOfBoundsCoordinates`
 
 ### [REQ-GPS-03] GPS Acquisition Timeout
-- **Statement**: GPS listening MUST time out after 8 seconds if no valid fix is acquired, disabling location listeners and presenting `"No GPS Fix"` with a `"Select to retry"` action item. When the user backs out of discovery (`onBack()`) or the view is hidden (`onHide()`), all active location listeners and timers MUST be cancelled immediately to conserve battery.
-- **Verification**: `NearbyAirportsTests.testGpsTimeoutTriggersError`, `NearbyAirportsTests.testNearbyMenuDelegateErrorHandling`, `NearbyAirportsTests.testNearbyMenuDelegateOnBackCancelsSearch`, `StationTests.testSetStationCancelsActiveGpsSearch`
+- **Statement**: GPS listening MUST time out after 8 seconds if no valid fix is acquired, disabling location listeners and presenting `"No GPS Fix"` with a `"Select to retry"` action item. When the user backs out of discovery (`onBack()`) or the view is hidden (`onHide()`), all active location listeners and timers MUST be cancelled immediately to conserve battery. The service MUST validate API token configuration prior to initiating GPS listening; if the token is unset or default, discovery MUST fail immediately with `'Token Missing'` without powering on GPS hardware.
+- **Verification**: `NearbyAirportsTests.testGpsTimeoutTriggersError`, `NearbyAirportsTests.testNearbyMenuDelegateErrorHandling`, `NearbyAirportsTests.testNearbyMenuDelegateOnBackCancelsSearch`, `StationTests.testSetStationCancelsActiveGpsSearch`, `NearbyAirportsTests.testEmptyArrayTriggersNoAirportsFoundError`, `NearbyAirportsTests.testSearchNearbyWithoutTokenRejectsImmediatelyWithoutGps`
 
 ### [REQ-GPS-04] AVWX Station Query & Result Limit
 - **Statement**: Service MUST query `https://avwx.rest/api/station/near/{lat},{lon}?n={NearbyCount}` and parse up to `NearbyCount` reporting airfields (default 5, configurable 1-20 in settings) using `"nautical_miles"`, `"distance"`, or `"miles"`.
@@ -100,8 +101,8 @@ Living specification defining user experience, device behaviors, settings, and c
 - **Verification**: `LayoutProfileTests.testMockDataProviderVfr`, `LayoutProfileTests.testMockDataProviderIfrLong`, `LayoutProfileTests.testMockDataProviderTaf`, `ViewDataTests.testMockVfrIntegration`, `ViewDataTests.testMockTafIntegration`
 
 ### [REQ-NET-04] Request Deduplication & Lifecycle Optimization
-- **Statement**: The application MUST NOT dispatch duplicate concurrent HTTP requests for the same station and report type. Returning to the main view from menus without changing the target station MUST NOT re-trigger network requests if reports are already loaded. Re-selecting the currently active station in the station menu MUST mark the data stale and trigger a single refresh request upon view return.
-- **Verification**: `StationTests.testMenuReturnTriggersSingleRequest`, `StationTests.testMenuCancelDoesNotTriggerDuplicateRequest`, `StationTests.testStationReselectionTriggersRefresh`
+- **Statement**: The application MUST NOT dispatch duplicate concurrent HTTP requests for the same station and report type. Returning to the main view from menus without changing the target station MUST NOT re-trigger network requests if reports are already loaded. Re-selecting the currently active station in the station menu MUST mark the data stale and trigger a single refresh request upon view return. Asynchronous HTTP responses MUST be tagged with a monotonically increasing sequence ID. Responses corresponding to superseded requests (e.g. from prior station selections or report mode toggles) MUST be discarded without modifying active view state or in-flight tracking.
+- **Verification**: `StationTests.testMenuReturnTriggersSingleRequest`, `StationTests.testMenuCancelDoesNotTriggerDuplicateRequest`, `StationTests.testStationReselectionTriggersRefresh`, `StationTests.testStaleResponseIgnoredOnStationChange`
 
 ## 6. Scrolling & Navigation
 
