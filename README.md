@@ -63,28 +63,40 @@ Example output from simulator (and on watch when installed):
 3.  Alternatively, created a **Run Configuration** in `launch.json` or select **"Run Tests"** in the Run and Debug sidebar.
 
 ## Deploying to Device (Side-Loading)
-To install this app on your physical Garmin watch without publishing to the store:
-1.  **Connect your watch** to your computer via USB.
-2.  In VS Code, run **Monkey C: Build for Device**.
-    - Select or make a new folder to build into: `./bin/`.
-    - Choose `Release` build.
-    - Select your device model (e.g., `venu445`).
-    - This creates a `.prg` file in the `bin/` folder (e.g., `bin/garminmetar.prg`).
-3.  **Copy the file**:
-    - Open your watch's file system (it appears as a USB drive).
-    - Navigate to the `GARMIN/APPS` folder.
-    - Drag and drop `bin/garminmetar.prg` into `GARMIN/APPS`.
-4.  **Disconnect** the watch.
-5.  On the watch, long-press the screen, select **Watch Face**, and scroll to find "Garmin Metar".
-6.  To configure settings, use the **Garmin Connect App** on your phone (tap the device > Activities, Apps & More > Watch Faces > Garmin Metar > Settings).
-7.  Add your AVWX API key to the app settings.
 
-### Note on Settings for Side-Loaded Apps
-The "Settings" menu will **NOT** appear in the Garmin Connect app for side-loaded (`.prg`) files because the app is not in the store database. To configure settings:
+To test a development build on your physical Garmin watch without publishing to the store:
 
-1.  **Store Beta (Official)**: Upload as a "Beta App" to the Connect IQ Store. This is the only way to get the real UI on your phone.
-2.  **Hardcode Defaults (Quickest)**: Edit `resources/settings/properties.xml` to set your API Key directly in the source code, then rebuild/copy.
-3.  **Manual File (Advanced)**: Generate a `.SET` file using the Simulator ("App Settings Editor" > "Send Settings"), find the temp file, rename it to match your PRG (e.g. `garminmetar.SET`), and copy it to `GARMIN/APPS/SETTINGS` on the watch.
+### 1. Avoid Store App ID Conflicts
+If you have already installed Garmin METAR from the Connect IQ Store, the watch firmware will reject or silently remove a sideloaded `.prg` that shares the same App ID.
+To install a dev build alongside the store version:
+- Change the `id` attribute in `manifest.xml` to a new unique UUID (e.g. generate one via PowerShell: `[guid]::NewGuid().ToString()`).
+- Optionally change `AppName` in `resources/strings/strings.xml` to `GarminMetar Dev` to easily distinguish it on the watch.
+
+### 2. Configure Settings & API Token
+Sideloaded (`.prg`) apps do **not** support settings configuration via the Garmin Connect mobile app (phone settings only work for Store-installed apps).
+- Sideloaded apps load defaults directly from `resources/settings/properties.xml`.
+- For testing with live data, set your AVWX token locally in `resources/settings/properties.xml` under `AvwxToken` before compiling.
+- **IMPORTANT**: Never commit your personal API token to git. Revert temporary changes to `manifest.xml`, `strings.xml`, and `properties.xml` after building.
+
+### 3. Build the PRG
+Run the build script with your watch device ID:
+```bash
+uv run scripts/dev.py build --device <device_id> --output bin/garminmetardev.prg
+```
+*(Common device IDs: `venu445mm`, `instinct345mm`, `fenix847mm`).*
+
+Alternatively, in VS Code: run **Monkey C: Build for Device**, select your device model, and output to `bin/`.
+
+### 4. Copy to Watch (USB / MTP)
+1. Connect your watch to your computer via USB.
+2. On Windows, modern Garmin devices connect via MTP (Media Transfer Protocol) rather than a drive letter:
+   - Navigate to: `This PC\<Your Watch Model>\Internal Storage\GARMIN\Apps`
+   *(On USB Mass Storage models: `<Drive Letter>:\GARMIN\APPS`)*
+3. Copy `bin/garminmetardev.prg` into the `Apps` directory.
+
+### 5. Disconnect and Launch
+- Garmin watches stay in USB storage/charging mode while plugged in. **Unplug the USB cable** to trigger the watch to install the new binary and return to the main interface.
+- Open the watch's Activities & Apps list to launch **GarminMetar Dev**.
 
 ## Exporting for the Store (.iq)
 To upload to the Connect IQ Store (or to use the Beta App feature for settings), you need a signed `.iq` file, not a `.prg`.
