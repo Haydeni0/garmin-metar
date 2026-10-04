@@ -1,6 +1,7 @@
 using Toybox.Test;
 using Toybox.Application;
 using Toybox.WatchUi;
+using Toybox.Time;
 import Toybox.Lang;
 
 (:test)
@@ -421,6 +422,314 @@ module StationTests {
                 return false;
             }
 
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+        }
+    }
+
+    (:test)
+    function testStationUtilsGetActiveTokenWithCustom(logger as Test.Logger) as Boolean {
+        var token = StationUtils.getActiveToken("CUSTOM_TOKEN_123");
+        if (!token.equals("CUSTOM_TOKEN_123")) {
+            logger.debug("Expected CUSTOM_TOKEN_123, got: " + token);
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testStationUtilsGetActiveTokenWithBlankAndNull(logger as Test.Logger) as Boolean {
+        var expected = StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN;
+
+        var tokenNull = StationUtils.getActiveToken(null);
+        if (!tokenNull.equals(expected)) {
+            logger.debug("Expected public token for null, got: " + tokenNull);
+            return false;
+        }
+
+        var tokenEmpty = StationUtils.getActiveToken("");
+        if (!tokenEmpty.equals(expected)) {
+            logger.debug("Expected public token for empty string, got: " + tokenEmpty);
+            return false;
+        }
+
+        var tokenPlaceholder = StationUtils.getActiveToken("YOUR_TOKEN_HERE");
+        if (!tokenPlaceholder.equals(expected)) {
+            logger.debug("Expected public token for placeholder, got: " + tokenPlaceholder);
+            return false;
+        }
+
+        return true;
+    }
+
+    (:test)
+    function testStationUtilsIsPublicDefaultToken(logger as Test.Logger) as Boolean {
+        if (!StationUtils.isPublicDefaultToken(null)) {
+            logger.debug("Expected null to be public default token");
+            return false;
+        }
+        if (!StationUtils.isPublicDefaultToken("")) {
+            logger.debug("Expected empty string to be public default token");
+            return false;
+        }
+        if (!StationUtils.isPublicDefaultToken("YOUR_TOKEN_HERE")) {
+            logger.debug("Expected placeholder to be public default token");
+            return false;
+        }
+        if (!StationUtils.isPublicDefaultToken(StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN)) {
+            logger.debug("Expected DEFAULT_PUBLIC_AVWX_TOKEN to be public default token");
+            return false;
+        }
+        if (StationUtils.isPublicDefaultToken("CUSTOM_KEY")) {
+            logger.debug("Expected CUSTOM_KEY to not be public default token");
+            return false;
+        }
+
+        if (StationUtils.isConfiguredCustomToken(null)) {
+            logger.debug("Expected null to not be configured custom token");
+            return false;
+        }
+        if (StationUtils.isConfiguredCustomToken("")) {
+            logger.debug("Expected empty string to not be configured custom token");
+            return false;
+        }
+        if (!StationUtils.isConfiguredCustomToken("CUSTOM_KEY")) {
+            logger.debug("Expected CUSTOM_KEY to be configured custom token");
+            return false;
+        }
+
+        return true;
+    }
+
+    (:test)
+    function testStationUtilsAbsVal(logger as Test.Logger) as Boolean {
+        var negVal = StationUtils.absVal(-12.34);
+        if (negVal < 12.339 || negVal > 12.341) {
+            logger.debug("Expected 12.34 for -12.34, got: " + negVal);
+            return false;
+        }
+
+        var zeroVal = StationUtils.absVal(0.0);
+        if (zeroVal != 0.0) {
+            logger.debug("Expected 0.0 for 0.0, got: " + zeroVal);
+            return false;
+        }
+
+        var posVal = StationUtils.absVal(56.78);
+        if (posVal < 56.779 || posVal > 56.781) {
+            logger.debug("Expected 56.78 for 56.78, got: " + posVal);
+            return false;
+        }
+
+        return true;
+    }
+
+    (:test)
+    function testStationUtilsFormatErrorMessageCatalog(logger as Test.Logger) as Boolean {
+        if (!StationUtils.formatErrorMessage(-104, true).equals("Phone Disconnected\nCheck Bluetooth")) {
+            logger.debug("Mismatch for -104: " + StationUtils.formatErrorMessage(-104, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(-2, true).equals("Phone Timeout\nOpen Garmin Connect")) {
+            logger.debug("Mismatch for -2: " + StationUtils.formatErrorMessage(-2, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(-3, true).equals("Network Timeout\nCheck Phone Internet")) {
+            logger.debug("Mismatch for -3: " + StationUtils.formatErrorMessage(-3, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(-300, true).equals("Network Timeout\nCheck Phone Internet")) {
+            logger.debug("Mismatch for -300: " + StationUtils.formatErrorMessage(-300, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(-101, true).equals("Bluetooth Busy\nTry Again")) {
+            logger.debug("Mismatch for -101: " + StationUtils.formatErrorMessage(-101, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(-400, true).equals("Response Too Large")) {
+            logger.debug("Mismatch for -400: " + StationUtils.formatErrorMessage(-400, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(-999, true).equals("Connection Error (-999)")) {
+            logger.debug("Mismatch for -999: " + StationUtils.formatErrorMessage(-999, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(400, true).equals("Invalid Request (400)")) {
+            logger.debug("Mismatch for 400: " + StationUtils.formatErrorMessage(400, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(401, true).equals("Token Invalid (401)\nCheck App Settings")) {
+            logger.debug("Mismatch for 401: " + StationUtils.formatErrorMessage(401, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(403, true).equals("Public Limit Reached\nEnter Own Token in Settings")) {
+            logger.debug("Mismatch for 403 public: " + StationUtils.formatErrorMessage(403, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(403, false).equals("Rate Limited (403)\nWait or Check Token")) {
+            logger.debug("Mismatch for 403 custom: " + StationUtils.formatErrorMessage(403, false));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(404, true).equals("Station Not Found\nVerify ICAO Code (404)")) {
+            logger.debug("Mismatch for 404: " + StationUtils.formatErrorMessage(404, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(429, true).equals("Public Limit Reached\nEnter Own Token in Settings")) {
+            logger.debug("Mismatch for 429 public: " + StationUtils.formatErrorMessage(429, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(429, false).equals("Rate Limited (429)\nWait or Check Token")) {
+            logger.debug("Mismatch for 429 custom: " + StationUtils.formatErrorMessage(429, false));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(500, true).equals("Server Error (500)\nTry Again Later")) {
+            logger.debug("Mismatch for 500: " + StationUtils.formatErrorMessage(500, true));
+            return false;
+        }
+        if (!StationUtils.formatErrorMessage(502, false).equals("Server Error (502)\nTry Again Later")) {
+            logger.debug("Mismatch for 502: " + StationUtils.formatErrorMessage(502, false));
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testStationUtilsFormatNearbyErrorMessageCatalog(logger as Test.Logger) as Boolean {
+        if (!StationUtils.formatNearbyErrorMessage(-104, true).equals("Phone Disconnected")) {
+            logger.debug("Nearby mismatch for -104: " + StationUtils.formatNearbyErrorMessage(-104, true));
+            return false;
+        }
+        if (!StationUtils.formatNearbyErrorMessage(-2, true).equals("Network Timeout")) {
+            logger.debug("Nearby mismatch for -2: " + StationUtils.formatNearbyErrorMessage(-2, true));
+            return false;
+        }
+        if (!StationUtils.formatNearbyErrorMessage(-3, true).equals("Network Timeout")) {
+            logger.debug("Nearby mismatch for -3: " + StationUtils.formatNearbyErrorMessage(-3, true));
+            return false;
+        }
+        if (!StationUtils.formatNearbyErrorMessage(-300, true).equals("Network Timeout")) {
+            logger.debug("Nearby mismatch for -300: " + StationUtils.formatNearbyErrorMessage(-300, true));
+            return false;
+        }
+        if (!StationUtils.formatNearbyErrorMessage(401, true).equals("Token Invalid")) {
+            logger.debug("Nearby mismatch for 401: " + StationUtils.formatNearbyErrorMessage(401, true));
+            return false;
+        }
+        if (!StationUtils.formatNearbyErrorMessage(403, true).equals("Limit Reached")) {
+            logger.debug("Nearby mismatch for 403: " + StationUtils.formatNearbyErrorMessage(403, true));
+            return false;
+        }
+        if (!StationUtils.formatNearbyErrorMessage(429, true).equals("Limit Reached")) {
+            logger.debug("Nearby mismatch for 429: " + StationUtils.formatNearbyErrorMessage(429, true));
+            return false;
+        }
+        if (!StationUtils.formatNearbyErrorMessage(500, true).equals("Error: 500")) {
+            logger.debug("Nearby mismatch for 500: " + StationUtils.formatNearbyErrorMessage(500, true));
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testWeatherCachePreventsDuplicateRequest(logger as Test.Logger) as Boolean {
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        Application.Properties.setValue("AvwxToken", "MOCK_VFR");
+        try {
+            var view = new GarminMetarView();
+            view.setStation("EGLL");
+            var cachedReport = "EGLL CACHED METAR 9999 CAVOK";
+            view.setCacheEntryForTest("EGLL", false, cachedReport, "VFR", Time.now().value());
+
+            var prevReqCount = view.getRequestCountForTest();
+            var prevReqId = view.getCurrentRequestIdForTest();
+
+            view.makeRequest();
+
+            if (view.getRequestCountForTest() != prevReqCount) {
+                logger.debug("Expected request count not to advance on cache hit; prev: " + prevReqCount + " now: " + view.getRequestCountForTest());
+                return false;
+            }
+            if (view.getCurrentRequestIdForTest() != prevReqId) {
+                logger.debug("Expected request ID not to advance on cache hit; prev: " + prevReqId + " now: " + view.getCurrentRequestIdForTest());
+                return false;
+            }
+            if (!view.getMetarCode().equals(cachedReport)) {
+                logger.debug("Expected cached METAR code, got: " + view.getMetarCode());
+                return false;
+            }
+            if (view.getFlightRules() == null || !view.getFlightRules().equals("VFR")) {
+                logger.debug("Expected VFR flight rules from cache, got: " + view.getFlightRules());
+                return false;
+            }
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+        }
+    }
+
+    (:test)
+    function testWeatherCacheTtlExpiration(logger as Test.Logger) as Boolean {
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        Application.Properties.setValue("AvwxToken", "MOCK_VFR");
+        try {
+            var view = new GarminMetarView();
+            view.setStation("EGLL");
+            var expiredReport = "EGLL EXPIRED METAR";
+            var expiredTimestamp = Time.now().value() - 301;
+            view.setCacheEntryForTest("EGLL", false, expiredReport, "VFR", expiredTimestamp);
+
+            var prevReqCount = view.getRequestCountForTest();
+
+            view.makeRequest();
+
+            if (view.getRequestCountForTest() != prevReqCount + 1) {
+                logger.debug("Expected request count to increment on cache miss; prev: " + prevReqCount + " now: " + view.getRequestCountForTest());
+                return false;
+            }
+            if (view.getMetarCode().equals(expiredReport)) {
+                logger.debug("Expected expired cache entry to be bypassed, got cached report");
+                return false;
+            }
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+        }
+    }
+
+    (:test)
+    function testStationReselectionInvalidatesCache(logger as Test.Logger) as Boolean {
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        Application.Properties.setValue("AvwxToken", "MOCK_VFR");
+        try {
+            var view = new GarminMetarView();
+            view.setStation("EGLL");
+            view.setCacheEntryForTest("EGLL", false, "EGLL CACHED METAR", "VFR", Time.now().value());
+            view.setCacheEntryForTest("EGLL", true, "EGLL CACHED TAF", null, Time.now().value());
+
+            if (!view.hasValidCacheEntry("EGLL", false)) {
+                logger.debug("Expected valid cache entry before reselection");
+                return false;
+            }
+            if (!view.hasValidCacheEntry("EGLL", true)) {
+                logger.debug("Expected valid TAF cache entry before reselection");
+                return false;
+            }
+
+            view.setStation("EGLL");
+
+            if (view.hasValidCacheEntry("EGLL", false)) {
+                logger.debug("Expected METAR cache entry to be invalidated on station reselection");
+                return false;
+            }
+            if (view.hasValidCacheEntry("EGLL", true)) {
+                logger.debug("Expected TAF cache entry to be invalidated on station reselection");
+                return false;
+            }
+            if (!view.getNeedsRefreshForTest()) {
+                logger.debug("Expected needsRefresh to be true on station reselection");
+                return false;
+            }
             return true;
         } finally {
             Application.Properties.setValue("AvwxToken", prevToken);

@@ -3,17 +3,31 @@ using Toybox.Position;
 using Toybox.Communications;
 using Toybox.Application;
 using Toybox.Timer;
+using Toybox.Time;
 import Toybox.Lang;
 
 class NearbyAirportsService {
 
+    hidden static var sCachedAirports as Array<Dictionary> or Null = null;
+    hidden static var sCachedLat as Float or Double or Null = null;
+    hidden static var sCachedLon as Float or Double or Null = null;
+    hidden static var sCachedTimestamp as Number or Null = null;
+
     hidden var mCallback as (Method(success as Boolean, data as Object) as Void) or Null = null;
     hidden var mIsSearching as Boolean = false;
     hidden var mGpsTimer as Timer.Timer or Null = null;
+    hidden var mActiveToken as String = "";
+    hidden var mInFlightLat as Float or Double or Null = null;
+    hidden var mInFlightLon as Float or Double or Null = null;
+    hidden var mHasFallenBack as Boolean = false;
 
     function initialize() {
         mCallback = null;
         mGpsTimer = null;
+        mActiveToken = "";
+        mInFlightLat = null;
+        mInFlightLon = null;
+        mHasFallenBack = false;
     }
 
     function searchNearby(callback as Method(success as Boolean, data as Object) as Void) as Void {
@@ -21,6 +35,9 @@ class NearbyAirportsService {
         mIsSearching = true;
 
         var token = Application.Properties.getValue("AvwxToken");
+        mActiveToken = StationUtils.getActiveToken(token);
+        mHasFallenBack = false;
+
         if (token != null && token instanceof String && token.find("MOCK") == 0) {
             var mockAirports = getMockNearbyAirports();
             var cb = mCallback;
@@ -29,11 +46,6 @@ class NearbyAirportsService {
             if (cb != null) {
                 cb.invoke(true, mockAirports);
             }
-            return;
-        }
-
-        if (token == null || !(token instanceof String) || token.equals("YOUR_TOKEN_HERE") || token.equals("")) {
-            notifyError("Token Missing");
             return;
         }
 
@@ -122,16 +134,36 @@ class NearbyAirportsService {
             return;
         }
 
-        var token = Application.Properties.getValue("AvwxToken");
-        if (token == null || token.equals("") || token.equals("YOUR_TOKEN_HERE")) {
-            notifyError("Token Missing");
-            return;
+        if (!mHasFallenBack) {
+            var token = Application.Properties.getValue("AvwxToken");
+            mActiveToken = StationUtils.getActiveToken(token);
+        }
+
+        mInFlightLat = lat;
+        mInFlightLon = lon;
+
+        if (sCachedAirports != null && sCachedLat != null && sCachedLon != null && sCachedTimestamp != null) {
+            var age = Time.now().value() - sCachedTimestamp;
+            if (age < StationUtils.CACHE_TTL_SECONDS) {
+                var dLat = StationUtils.absVal(lat - sCachedLat);
+                var dLon = StationUtils.absVal(lon - sCachedLon);
+                if (dLat < 0.045 && dLon < 0.045) {
+                    stopGpsListening();
+                    mIsSearching = false;
+                    var cb = mCallback;
+                    mCallback = null;
+                    if (cb != null) {
+                        cb.invoke(true, sCachedAirports);
+                    }
+                    return;
+                }
+            }
         }
 
         var limit = getNearbyLimit();
         var url = "https://avwx.rest/api/station/near/" + lat.format("%.4f") + "," + lon.format("%.4f");
         var params = {
-            "token" => token,
+            "token" => mActiveToken,
             "format" => "json",
             "n" => limit
         };
@@ -140,12 +172,12 @@ class NearbyAirportsService {
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
         };
 
+        mIsSearching = true;
         System.println("Nearby Request to: " + url);
         Communications.makeWebRequest(url, params, options, method(:onReceiveNearby));
     }
 
     function onReceiveNearby(responseCode as Number, data as Dictionary or String or Null) as Void {
-        mIsSearching = false;
         System.println("Nearby Response: " + responseCode);
         System.println("Nearby Data: " + data);
         if (responseCode == 200 && data != null && data instanceof Array) {
@@ -155,6 +187,12 @@ class NearbyAirportsService {
                 notifyError("No Airports Found");
                 return;
             }
+            sCachedAirports = airports;
+            sCachedLat = mInFlightLat;
+            sCachedLon = mInFlightLon;
+            sCachedTimestamp = Time.now().value();
+
+            mIsSearching = false;
             var cb = mCallback;
             mCallback = null;
             if (cb != null) {
@@ -163,10 +201,14 @@ class NearbyAirportsService {
             return;
         } else if (responseCode == 200) {
             notifyError("Bad Format");
-        } else if (responseCode == 401 || responseCode == 403) {
-            notifyError("Auth Error " + responseCode);
+        } else if (responseCode == 401 && !mHasFallenBack && StationUtils.isConfiguredCustomToken(mActiveToken) && mInFlightLat != null && mInFlightLon != null) {
+            mHasFallenBack = true;
+            mActiveToken = StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN;
+            fetchFromAvwx(mInFlightLat, mInFlightLon);
+            return;
         } else {
-            notifyError("Network Error: " + responseCode);
+            var isPub = StationUtils.isPublicDefaultToken(mActiveToken);
+            notifyError(StationUtils.formatNearbyErrorMessage(responseCode, isPub));
         }
     }
 
@@ -223,6 +265,21 @@ class NearbyAirportsService {
 
     function setCallbackForTest(cb as Method) as Void {
         mCallback = cb;
+    }
+
+    static function clearStaticCacheForTest() as Void {
+        sCachedAirports = null;
+        sCachedLat = null;
+        sCachedLon = null;
+        sCachedTimestamp = null;
+    }
+
+    function getActiveTokenForTest() as String {
+        return mActiveToken;
+    }
+
+    function getHasFallenBackForTest() as Boolean {
+        return mHasFallenBack;
     }
 
     static function getNearbyLimit() as Number {

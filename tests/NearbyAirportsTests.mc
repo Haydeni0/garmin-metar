@@ -2,6 +2,7 @@ using Toybox.Test;
 using Toybox.WatchUi;
 using Toybox.Position;
 using Toybox.Application;
+using Toybox.Time;
 import Toybox.Lang;
 
 (:test)
@@ -470,10 +471,12 @@ module NearbyAirportsTests {
     class MockNearbyCallbackHolder {
         var mSuccess as Boolean = false;
         var mData as Object or Null = null;
+        var mCallCount as Number = 0;
 
         function callback(success as Boolean, data as Object) as Void {
             mSuccess = success;
             mData = data;
+            mCallCount++;
         }
     }
 
@@ -682,16 +685,19 @@ module NearbyAirportsTests {
             var service = new NearbyAirportsService();
             var holder = new MockNearbyCallbackHolder();
             service.searchNearby(holder.method(:callback));
-            if (holder.mSuccess != false) {
-                logger.debug("Expected callback success to be false, got: " + holder.mSuccess);
+            if (!service.isSearching()) {
+                logger.debug("Expected isSearching to be true when search starts with blank token");
+                service.cancel();
                 return false;
             }
-            if (!"Token Missing".equals(holder.mData)) {
-                logger.debug("Expected error 'Token Missing', got: " + holder.mData);
+            if (holder.mCallCount != 0) {
+                logger.debug("Expected no immediate callback error when token is blank");
+                service.cancel();
                 return false;
             }
+            service.cancel();
             if (service.isSearching()) {
-                logger.debug("Expected isSearching to be false");
+                logger.debug("Expected isSearching to be false after cancel()");
                 return false;
             }
             return true;
@@ -745,6 +751,236 @@ module NearbyAirportsTests {
             return false;
         }
 
+        return true;
+    }
+
+    (:test)
+    function testNearbyAirportsServiceUsesPublicTokenWhenBlank(logger as Test.Logger) as Boolean {
+        NearbyAirportsService.clearStaticCacheForTest();
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        Application.Properties.setValue("AvwxToken", "");
+        try {
+            var service = new NearbyAirportsService();
+            var holder = new MockNearbyCallbackHolder();
+            service.searchNearby(holder.method(:callback));
+            if (!service.getActiveTokenForTest().equals(StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN)) {
+                logger.debug("Expected active token to be public default token");
+                service.cancel();
+                return false;
+            }
+            if (!service.isSearching()) {
+                logger.debug("Expected service to be searching");
+                service.cancel();
+                return false;
+            }
+            service.cancel();
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+            NearbyAirportsService.clearStaticCacheForTest();
+        }
+    }
+
+    (:test)
+    function testNearbyAirportsStaticCoordinateCacheHit(logger as Test.Logger) as Boolean {
+        NearbyAirportsService.clearStaticCacheForTest();
+        var prevSimGps = Application.Properties.getValue("SimulatedGps");
+        try {
+            Application.Properties.setValue("SimulatedGps", "");
+            // 1. Populate cache at (51.50, -0.12)
+            var service1 = new NearbyAirportsService();
+            var holder1 = new MockNearbyCallbackHolder();
+            service1.searchNearby(holder1.method(:callback));
+            service1.fetchFromAvwx(51.50, -0.12);
+            var rawData = [
+                {
+                    "icao" => "EGLL",
+                    "name" => "Heathrow",
+                    "distance" => 5.0
+                }
+            ] as Object;
+            service1.onReceiveNearby(200, rawData as Dictionary or String or Null);
+            if (holder1.mCallCount != 1 || holder1.mSuccess != true) {
+                logger.debug("Expected service1 to succeed and cache results");
+                return false;
+            }
+
+            // 2. Query at (51.52, -0.11) within ~2 km of cached (51.50, -0.12)
+            var service2 = new NearbyAirportsService();
+            var holder2 = new MockNearbyCallbackHolder();
+            service2.searchNearby(holder2.method(:callback));
+            service2.fetchFromAvwx(51.52, -0.11);
+
+            if (holder2.mCallCount != 1) {
+                logger.debug("Expected cached callback invoked immediately, got call count: " + holder2.mCallCount);
+                service2.cancel();
+                return false;
+            }
+            if (holder2.mSuccess != true) {
+                logger.debug("Expected cache hit success to be true");
+                return false;
+            }
+            if (service2.isSearching()) {
+                logger.debug("Expected service2.isSearching() to be false on cache hit");
+                return false;
+            }
+            var airports = holder2.mData as Array<Dictionary>;
+            if (airports == null || airports.size() != 1 || !airports[0][:icao].equals("EGLL")) {
+                logger.debug("Expected cached airport EGLL");
+                return false;
+            }
+            return true;
+        } finally {
+            Application.Properties.setValue("SimulatedGps", prevSimGps);
+            NearbyAirportsService.clearStaticCacheForTest();
+        }
+    }
+
+    (:test)
+    function testNearbyAirportsStaticCacheMissOnDistance(logger as Test.Logger) as Boolean {
+        NearbyAirportsService.clearStaticCacheForTest();
+        var prevSimGps = Application.Properties.getValue("SimulatedGps");
+        try {
+            Application.Properties.setValue("SimulatedGps", "");
+            // 1. Populate cache at (51.50, -0.12)
+            var service1 = new NearbyAirportsService();
+            var holder1 = new MockNearbyCallbackHolder();
+            service1.searchNearby(holder1.method(:callback));
+            service1.fetchFromAvwx(51.50, -0.12);
+            var rawData = [
+                {
+                    "icao" => "EGLL",
+                    "name" => "Heathrow",
+                    "distance" => 5.0
+                }
+            ] as Object;
+            service1.onReceiveNearby(200, rawData as Dictionary or String or Null);
+
+            // 2. Query at (52.50, -0.12) (>100 km away)
+            var service2 = new NearbyAirportsService();
+            var holder2 = new MockNearbyCallbackHolder();
+            service2.searchNearby(holder2.method(:callback));
+            service2.fetchFromAvwx(52.50, -0.12);
+
+            // Distance delta > 0.045: cache miss, web request issued, callback not called yet
+            if (holder2.mCallCount != 0) {
+                logger.debug("Expected cache miss to not invoke callback immediately; call count: " + holder2.mCallCount);
+                service2.cancel();
+                return false;
+            }
+            if (!service2.isSearching()) {
+                logger.debug("Expected service2 to still be searching on cache miss");
+                service2.cancel();
+                return false;
+            }
+            service2.cancel();
+            return true;
+        } finally {
+            Application.Properties.setValue("SimulatedGps", prevSimGps);
+            NearbyAirportsService.clearStaticCacheForTest();
+        }
+    }
+
+    (:test)
+    function testNearbyAirports401RetriesWithPublicToken(logger as Test.Logger) as Boolean {
+        NearbyAirportsService.clearStaticCacheForTest();
+        var prevToken = Application.Properties.getValue("AvwxToken");
+        var prevSimGps = Application.Properties.getValue("SimulatedGps");
+        Application.Properties.setValue("AvwxToken", "CUSTOM_BAD_TOKEN");
+        Application.Properties.setValue("SimulatedGps", "");
+        try {
+            var service = new NearbyAirportsService();
+            var holder = new MockNearbyCallbackHolder();
+            service.searchNearby(holder.method(:callback));
+            service.fetchFromAvwx(51.50, -0.12);
+
+            if (!service.getActiveTokenForTest().equals("CUSTOM_BAD_TOKEN")) {
+                logger.debug("Expected active token to initially be custom token");
+                service.cancel();
+                return false;
+            }
+            if (service.getHasFallenBackForTest()) {
+                logger.debug("Expected hasFallenBack to be false initially");
+                service.cancel();
+                return false;
+            }
+
+            // Simulate 401 response from AVWX
+            service.onReceiveNearby(401, null);
+
+            if (!service.getHasFallenBackForTest()) {
+                logger.debug("Expected hasFallenBack to be true after 401");
+                service.cancel();
+                return false;
+            }
+            if (!service.getActiveTokenForTest().equals(StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN)) {
+                logger.debug("Expected active token to fallback to public token");
+                service.cancel();
+                return false;
+            }
+            if (holder.mCallCount != 0) {
+                logger.debug("Expected callback not invoked yet during retry");
+                service.cancel();
+                return false;
+            }
+            if (!service.isSearching()) {
+                logger.debug("Expected service to still be searching during retry");
+                service.cancel();
+                return false;
+            }
+
+            service.cancel();
+            return true;
+        } finally {
+            Application.Properties.setValue("AvwxToken", prevToken);
+            Application.Properties.setValue("SimulatedGps", prevSimGps);
+            NearbyAirportsService.clearStaticCacheForTest();
+        }
+    }
+
+    (:test)
+    function testNearbyAirports429ShowsLimitReached(logger as Test.Logger) as Boolean {
+        var service = new NearbyAirportsService();
+        var holder = new MockNearbyCallbackHolder();
+        service.setCallbackForTest(holder.method(:callback));
+
+        service.onReceiveNearby(429, null);
+
+        if (holder.mCallCount != 1) {
+            logger.debug("Expected 1 callback call, got: " + holder.mCallCount);
+            return false;
+        }
+        if (holder.mSuccess != false) {
+            logger.debug("Expected failure callback on 429");
+            return false;
+        }
+        if (!"Limit Reached".equals(holder.mData)) {
+            logger.debug("Expected 'Limit Reached', got: " + holder.mData);
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testNearbyAirportsBleDisconnectedShowsPhoneDisconnected(logger as Test.Logger) as Boolean {
+        var service = new NearbyAirportsService();
+        var holder = new MockNearbyCallbackHolder();
+        service.setCallbackForTest(holder.method(:callback));
+
+        service.onReceiveNearby(-104, null);
+
+        if (holder.mCallCount != 1) {
+            logger.debug("Expected 1 callback call, got: " + holder.mCallCount);
+            return false;
+        }
+        if (holder.mSuccess != false) {
+            logger.debug("Expected failure callback on -104");
+            return false;
+        }
+        if (!"Phone Disconnected".equals(holder.mData)) {
+            logger.debug("Expected 'Phone Disconnected', got: " + holder.mData);
+            return false;
+        }
         return true;
     }
 }

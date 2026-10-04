@@ -3,6 +3,8 @@ using Toybox.Graphics;
 using Toybox.Communications;
 using Toybox.System;
 using Toybox.Application;
+using Toybox.Timer;
+using Toybox.Time;
 import Toybox.Lang;
 
 class MetarWebRequestCallback {
@@ -39,10 +41,16 @@ class GarminMetarView extends WatchUi.View {
     hidden var mInFlightIsTaf as Boolean = false;
     hidden var mRequestCount as Number = 0;
     hidden var mCurrentRequestId as Number = 0;
+    hidden var mNoticeTimer as Timer.Timer or Null = null;
+    hidden var mNoticeDismissed as Boolean = false;
+    hidden var mActiveToken as String = "";
+    hidden var mHasFallenBack as Boolean = false;
+    hidden var mWeatherCache as Dictionary<String, Dictionary> = {};
 
     function initialize() {
         View.initialize();
         mToken = Application.Properties.getValue("AvwxToken");
+        mActiveToken = StationUtils.getActiveToken(mToken);
         loadStationFromSettings();
     }
 
@@ -54,7 +62,7 @@ class GarminMetarView extends WatchUi.View {
             mStation = "";
         }
 
-        if (mToken == null || mToken.equals("YOUR_TOKEN_HERE") || mToken.equals("")) {
+        if (mActiveToken == null || mActiveToken.equals("")) {
             mMetarCode = "Set Token in App Settings";
         } else if (mStation.equals("")) {
             mMetarCode = "Locating closest airport...";
@@ -69,6 +77,7 @@ class GarminMetarView extends WatchUi.View {
 
         // Load settings
         mToken = Application.Properties.getValue("AvwxToken");
+        mActiveToken = StationUtils.getActiveToken(mToken);
         loadStationFromSettings();
 
         mTextAreaMetar = new WatchUi.TextArea({
@@ -105,6 +114,9 @@ class GarminMetarView extends WatchUi.View {
     // Helper to refresh data when settings change
     function updateFromSettings() {
         mToken = Application.Properties.getValue("AvwxToken");
+        mActiveToken = StationUtils.getActiveToken(mToken);
+        mHasFallenBack = false;
+        mWeatherCache = {};
         loadStationFromSettings();
         mNeedsRefresh = true;
         makeRequest();
@@ -115,6 +127,15 @@ class GarminMetarView extends WatchUi.View {
     // loading resources into memory.
     function onShow() as Void {
         Application.getApp().resetTimer();
+        mActiveToken = StationUtils.getActiveToken(mToken);
+        if (!mNoticeDismissed && StationUtils.isPublicDefaultToken(mActiveToken)) {
+            mMetarCode = "Using Public Token\nSet personal token in settings";
+            mFlightRules = null;
+            mNoticeTimer = new Timer.Timer();
+            mNoticeTimer.start(method(:onNoticeTimeout), 2000, false);
+            WatchUi.requestUpdate();
+            return;
+        }
         if (mStation == null || mStation.equals("")) {
             var target = Application.Properties.getValue("TargetStation");
             if (target == null || (target instanceof String && target.equals(""))) {
@@ -128,11 +149,35 @@ class GarminMetarView extends WatchUi.View {
             makeRequest();
         }
     }
+
+    function onNoticeTimeout() as Void {
+        mNoticeDismissed = true;
+        mNoticeTimer = null;
+        if (mStation == null || mStation.equals("")) {
+            var target = Application.Properties.getValue("TargetStation");
+            if (target == null || (target instanceof String && target.equals(""))) {
+                locateClosestAirport();
+                return;
+            }
+            mStation = target;
+        }
+        makeRequest();
+    }
     
     function setStation(station) {
         if (mIsLocatingClosest && mNearbyService != null) {
             mNearbyService.cancel();
             mIsLocatingClosest = false;
+        }
+        if (mStation != null && mStation.equals(station)) {
+            var metarKey = station + ":METAR";
+            var tafKey = station + ":TAF";
+            if (mWeatherCache.hasKey(metarKey)) {
+                mWeatherCache.remove(metarKey);
+            }
+            if (mWeatherCache.hasKey(tafKey)) {
+                mWeatherCache.remove(tafKey);
+            }
         }
         mStation = station;
         mNeedsRefresh = true;
@@ -215,6 +260,10 @@ class GarminMetarView extends WatchUi.View {
     // state of this View here. This includes freeing resources from
     // memory.
     function onHide() {
+        if (mNoticeTimer != null) {
+            mNoticeTimer.stop();
+            mNoticeTimer = null;
+        }
         if (mNearbyService != null && mIsLocatingClosest) {
             mNearbyService.cancel();
             mIsLocatingClosest = false;
@@ -224,7 +273,7 @@ class GarminMetarView extends WatchUi.View {
 
 
     function makeRequest() {
-        if (mToken == null || mToken.equals("YOUR_TOKEN_HERE") || mToken.equals("")) {
+        if (mActiveToken == null || mActiveToken.equals("")) {
              mMetarCode = "Set Token in App Settings";
              WatchUi.requestUpdate();
              return;
@@ -239,6 +288,23 @@ class GarminMetarView extends WatchUi.View {
             return;
         }
 
+        var cacheKey = mStation + ":" + (mIsShowingTaf ? "TAF" : "METAR");
+        if (mWeatherCache.hasKey(cacheKey)) {
+            var entry = mWeatherCache[cacheKey] as Dictionary;
+            if (entry != null && entry.hasKey(:timestamp) && ((Time.now().value() - (entry[:timestamp] as Number)) < StationUtils.CACHE_TTL_SECONDS)) {
+                mMetarCode = entry[:code] as String;
+                mFlightRules = entry[:flightRules] as String or Null;
+                mIsRequestInFlight = false;
+                mInFlightStation = null;
+                mNeedsRefresh = false;
+                if (mCurrentLayoutArea != null) {
+                    mCurrentLayoutArea.setText(mMetarCode);
+                }
+                WatchUi.requestUpdate();
+                return;
+            }
+        }
+
         if (mIsRequestInFlight && mInFlightStation != null && mInFlightStation.equals(mStation) && mInFlightIsTaf == mIsShowingTaf) {
             return;
         }
@@ -251,8 +317,8 @@ class GarminMetarView extends WatchUi.View {
         mNeedsRefresh = false;
 
         // Mock data provider for offline testing and deterministic visual verification
-        if (mToken.find("MOCK") == 0) {
-            var mockData = MockDataProvider.getMockPayload(mToken, mStation, mIsShowingTaf);
+        if (mActiveToken.find("MOCK") == 0) {
+            var mockData = MockDataProvider.getMockPayload(mActiveToken, mStation, mIsShowingTaf);
             var currentId = mCurrentRequestId;
             if (mockData.hasKey("status") && mockData["status"] != 200) {
                 handleWebResponse(mockData["status"], mockData, currentId);
@@ -267,7 +333,7 @@ class GarminMetarView extends WatchUi.View {
             url = "https://avwx.rest/api/taf/" + mStation;
         }
         var params = {
-            "token" => mToken,
+            "token" => mActiveToken,
             "format" => "json"
         };
 
@@ -307,6 +373,14 @@ class GarminMetarView extends WatchUi.View {
                    } else {
                        mFlightRules = null;
                    }
+                   if (mStation != null && !mStation.equals("")) {
+                       var cacheKey = mStation + ":" + (mIsShowingTaf ? "TAF" : "METAR");
+                       mWeatherCache[cacheKey] = {
+                           :code => mMetarCode,
+                           :flightRules => mFlightRules,
+                           :timestamp => Time.now().value()
+                       };
+                   }
                } else {
                    mMetarCode = "Bad Format";
                    mFlightRules = null;
@@ -315,12 +389,26 @@ class GarminMetarView extends WatchUi.View {
                mMetarCode = "Bad Format";
                mFlightRules = null;
            }
+       } else if (responseCode == 401 && StationUtils.isConfiguredCustomToken(mActiveToken) && !mHasFallenBack) {
+           mHasFallenBack = true;
+           mActiveToken = StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN;
+           if (!mNoticeDismissed) {
+               mMetarCode = "Using Public Token\nSet personal token in settings";
+               mFlightRules = null;
+               mNoticeTimer = new Timer.Timer();
+               mNoticeTimer.start(method(:onNoticeTimeout), 2000, false);
+               WatchUi.requestUpdate();
+               return;
+           }
+           makeRequest();
+           return;
        } else {
            mFlightRules = null;
-           mMetarCode = "Error: " + responseCode;
-           if (responseCode == 401 || responseCode == 403) {
-               mMetarCode += "\nCheck App Settings";
-           }
+           var isPub = StationUtils.isPublicDefaultToken(mActiveToken);
+           mMetarCode = StationUtils.formatErrorMessage(responseCode, isPub);
+       }
+       if (mCurrentLayoutArea != null) {
+           mCurrentLayoutArea.setText(mMetarCode);
        }
        WatchUi.requestUpdate();
     }
@@ -341,8 +429,9 @@ class GarminMetarView extends WatchUi.View {
         return mScrollY;
     }
 
-    function setToken(token as String) as Void {
+    function setToken(token as String or Null) as Void {
         mToken = token;
+        mActiveToken = StationUtils.getActiveToken(token);
     }
 
     function locateClosestAirport() as Void {
@@ -440,5 +529,46 @@ class GarminMetarView extends WatchUi.View {
 
     function getCurrentRequestIdForTest() as Number {
         return mCurrentRequestId;
+    }
+
+    function triggerNoticeTimeoutForTest() as Void {
+        onNoticeTimeout();
+    }
+
+    function getNoticeTimer() as Timer.Timer or Null {
+        return mNoticeTimer;
+    }
+
+    function setTokenForTest(token as String or Null) as Void {
+        setToken(token);
+    }
+
+    function getActiveTokenForTest() as String {
+        return mActiveToken;
+    }
+
+    function getHasFallenBackForTest() as Boolean {
+        return mHasFallenBack;
+    }
+
+    function setCacheEntryForTest(station as String, isTaf as Boolean, code as String, rules as String or Null, timestamp as Number) as Void {
+        var cacheKey = station + ":" + (isTaf ? "TAF" : "METAR");
+        mWeatherCache[cacheKey] = {
+            :code => code,
+            :flightRules => rules,
+            :timestamp => timestamp
+        };
+    }
+
+    function hasValidCacheEntry(station as String, isTaf as Boolean) as Boolean {
+        var cacheKey = station + ":" + (isTaf ? "TAF" : "METAR");
+        if (!mWeatherCache.hasKey(cacheKey)) {
+            return false;
+        }
+        var entry = mWeatherCache[cacheKey] as Dictionary;
+        if (entry == null || !entry.hasKey(:timestamp)) {
+            return false;
+        }
+        return (Time.now().value() - (entry[:timestamp] as Number)) < StationUtils.CACHE_TTL_SECONDS;
     }
 }

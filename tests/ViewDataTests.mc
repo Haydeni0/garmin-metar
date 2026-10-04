@@ -67,6 +67,7 @@ module ViewDataTests {
     (:test)
     function testParseAuthError401(logger as Test.Logger) as Boolean {
         var view = new GarminMetarView();
+        view.setToken(StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN);
         view.onReceive(401, null);
 
         var code = view.getMetarCode();
@@ -86,8 +87,8 @@ module ViewDataTests {
         var view = new GarminMetarView();
         view.onReceive(500, null);
 
-        if (!view.getMetarCode().equals("Error: 500")) {
-            logger.debug("Expected Error: 500, got: " + view.getMetarCode());
+        if (!view.getMetarCode().equals("Server Error (500)\nTry Again Later")) {
+            logger.debug("Expected Server Error (500), got: " + view.getMetarCode());
             return false;
         }
         return true;
@@ -98,8 +99,100 @@ module ViewDataTests {
         var view = new GarminMetarView();
         view.onReceive(-104, null);
 
-        if (!view.getMetarCode().equals("Error: -104")) {
-            logger.debug("Expected Error: -104, got: " + view.getMetarCode());
+        if (!view.getMetarCode().equals("Phone Disconnected\nCheck Bluetooth")) {
+            logger.debug("Expected Phone Disconnected, got: " + view.getMetarCode());
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testRateLimit429PublicTokenMessage(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.setToken(StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN);
+        view.onReceive(429, null);
+
+        if (!view.getMetarCode().equals("Public Limit Reached\nEnter Own Token in Settings")) {
+            logger.debug("Expected public limit message, got: " + view.getMetarCode());
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testRateLimit429CustomTokenMessage(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.setToken("CUSTOM_KEY_123");
+        view.onReceive(429, null);
+
+        if (!view.getMetarCode().equals("Rate Limited (429)\nWait or Check Token")) {
+            logger.debug("Expected custom rate limit message, got: " + view.getMetarCode());
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testBleTimeoutPhoneMessage(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.onReceive(-2, null);
+
+        if (!view.getMetarCode().equals("Phone Timeout\nOpen Garmin Connect")) {
+            logger.debug("Expected phone timeout message, got: " + view.getMetarCode());
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testServerTimeoutNetworkMessage(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.onReceive(-3, null);
+
+        if (!view.getMetarCode().equals("Network Timeout\nCheck Phone Internet")) {
+            logger.debug("Expected network timeout for -3, got: " + view.getMetarCode());
+            return false;
+        }
+
+        view.onReceive(-300, null);
+
+        if (!view.getMetarCode().equals("Network Timeout\nCheck Phone Internet")) {
+            logger.debug("Expected network timeout for -300, got: " + view.getMetarCode());
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testErrorPayloadsNullAndDictionaryResetsFlightRules(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.onReceive(200, {
+            "raw" => "EGLL 271950Z AUTO 27012KT 9999 FEW014",
+            "flight_rules" => "VFR"
+        });
+        if (view.getFlightRules() == null || !view.getFlightRules().equals("VFR")) {
+            logger.debug("Expected flight rules VFR");
+            return false;
+        }
+
+        view.onReceive(500, null);
+        if (view.getFlightRules() != null) {
+            logger.debug("Expected null flight rules on null error payload, got: " + view.getFlightRules());
+            return false;
+        }
+
+        view.onReceive(200, {
+            "raw" => "EGLL 271950Z AUTO 27012KT 9999 FEW014",
+            "flight_rules" => "VFR"
+        });
+        if (view.getFlightRules() == null || !view.getFlightRules().equals("VFR")) {
+            logger.debug("Expected flight rules VFR");
+            return false;
+        }
+
+        view.onReceive(400, { "error" => "station not found" });
+        if (view.getFlightRules() != null) {
+            logger.debug("Expected null flight rules on dictionary error payload, got: " + view.getFlightRules());
             return false;
         }
         return true;
@@ -109,12 +202,118 @@ module ViewDataTests {
     function testMissingTokenPrompt(logger as Test.Logger) as Boolean {
         var view = new GarminMetarView();
         view.setToken("");
-        view.makeRequest();
+        view.onShow();
 
-        if (!view.getMetarCode().equals("Set Token in App Settings")) {
-            logger.debug("Expected settings prompt for empty token, got: " + view.getMetarCode());
+        if (!view.getMetarCode().equals("Using Public Token\nSet personal token in settings")) {
+            logger.debug("Expected public token notice on startup, got: " + view.getMetarCode());
             return false;
         }
+        if (view.getNoticeTimer() == null) {
+            logger.debug("Expected notice timer to be running");
+            return false;
+        }
+        view.onHide();
+        return true;
+    }
+
+    (:test)
+    function testPublicTokenStartupNoticeDisplay(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.setToken(StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN);
+        view.onShow();
+
+        if (!view.getMetarCode().equals("Using Public Token\nSet personal token in settings")) {
+            logger.debug("Expected public token notice, got: " + view.getMetarCode());
+            return false;
+        }
+        if (view.getNoticeTimer() == null) {
+            logger.debug("Expected notice timer to be running");
+            return false;
+        }
+        view.onHide();
+        return true;
+    }
+
+    (:test)
+    function testConfiguredTokenBypassesStartupNotice(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.setStation("EGLL");
+        view.setToken("MOCK_VFR");
+        view.onShow();
+
+        if (view.getNoticeTimer() != null) {
+            logger.debug("Expected notice timer to be null for custom token");
+            return false;
+        }
+        if (view.getRequestCountForTest() == 0) {
+            logger.debug("Expected request to start immediately for custom token");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testNoticeTimeoutProceedsToRequest(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.setStation("EGLL");
+        view.setToken(StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN);
+        view.onShow();
+
+        if (view.getNoticeTimer() == null) {
+            logger.debug("Expected notice timer to be running");
+            return false;
+        }
+
+        var prevCount = view.getRequestCountForTest();
+        view.triggerNoticeTimeoutForTest();
+
+        if (view.getNoticeTimer() != null) {
+            logger.debug("Expected notice timer to be null after timeout");
+            return false;
+        }
+        if (view.getRequestCountForTest() <= prevCount) {
+            logger.debug("Expected makeRequest to be called on notice timeout");
+            return false;
+        }
+        return true;
+    }
+
+    (:test)
+    function testAuthError401RetriesWithPublicFallback(logger as Test.Logger) as Boolean {
+        var view = new GarminMetarView();
+        view.setStation("EGLL");
+        view.setToken("CUSTOM_INVALID_KEY");
+
+        if (!view.getActiveTokenForTest().equals("CUSTOM_INVALID_KEY")) {
+            logger.debug("Expected active token to be custom key");
+            return false;
+        }
+        if (view.getHasFallenBackForTest()) {
+            logger.debug("Expected hasFallenBack to be false initially");
+            return false;
+        }
+
+        // Simulate 401 response from AVWX
+        view.onReceive(401, null);
+
+        if (!view.getHasFallenBackForTest()) {
+            logger.debug("Expected hasFallenBack to be true after 401");
+            return false;
+        }
+        if (!view.getActiveTokenForTest().equals(StationUtils.DEFAULT_PUBLIC_AVWX_TOKEN)) {
+            logger.debug("Expected active token to be public default after 401");
+            return false;
+        }
+        if (!view.getMetarCode().equals("Using Public Token\nSet personal token in settings")) {
+            logger.debug("Expected public token notice on 401 fallback, got: " + view.getMetarCode());
+            return false;
+        }
+        if (view.getNoticeTimer() == null) {
+            logger.debug("Expected notice timer to be running on 401 fallback");
+            return false;
+        }
+
+        view.onHide();
         return true;
     }
 

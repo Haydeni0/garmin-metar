@@ -11,6 +11,8 @@ See on the [Garmin app store](https://apps.garmin.com/apps/2261817c-e073-4450-96
 - **Toggle METAR / TAF**: Switch between current METAR and TAF forecast via Start button or horizontal swipe.
 - **Station Selection**: Select from a list of airports via on-watch menu.
   - Stations are configured via App Settings.
+- **Works Out-of-the-Box**: Includes a shared public demo token for immediate use upon install.
+- **Optional Personal Token**: Configure your own free token from [avwx.rest](https://avwx.rest) to bypass shared public rate limits.
 
 ## Controls & Navigation
 
@@ -39,15 +41,19 @@ Example output from simulator (and on watch when installed):
 - [VS Code](https://code.visualstudio.com/)
 - [Monkey C Extension](https://marketplace.visualstudio.com/items?itemName=garmin.monkey-c)
 - [Connect IQ SDK Manager](https://developer.garmin.com/connect-iq/sdk/)
-- AVWX API Token (Free tier available at [avwx.rest](https://avwx.rest))
+- Optional: Personal AVWX API Token (Free tier available at [avwx.rest](https://avwx.rest))
 
-### Setup
+### Setup & Configuration
 1.  **Clone the repository**.
-2.  **Configure Settings**:
-    - The API Token, Default Station, and Station List are now configured via **App Settings**.
-    - **In Simulator**: Go to **File > Edit Persistent Storage > Edit Application.Properties data**
-    - **Note**: Paste your AVWX API Token into the field labeled **"AvwxToken"** and click **Save** to apply.
-    - **On Device**: Use the Garmin Connect App or Garmin Express.
+2.  **Out-of-the-Box Public Demo Token**:
+    - The app works immediately without configuration using a shared public demo token.
+    - When using the public token, a brief 2-second notice is displayed on launch.
+    - If a user-configured token ever fails authentication (HTTP 401), the app automatically falls back to the public demo token.
+3.  **Personal API Token (Optional, Recommended)**:
+    - Because the public demo token is shared across all users, it may encounter rate limits during peak usage.
+    - You can create your own free personal API token at [avwx.rest](https://avwx.rest) to avoid shared rate limits.
+    - **In Simulator**: Go to **File > Edit Persistent Storage > Edit Application.Properties data**, enter your token in **"AvwxToken"**, and click **Save**.
+    - **On Device**: Open the Garmin Connect mobile app or Garmin Express, go to app settings for Garmin METAR, and enter your token in **"AvwxToken"**.
 
 ### Running locally
 1.  Open the project in VS Code.

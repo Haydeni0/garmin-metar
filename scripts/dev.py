@@ -229,6 +229,30 @@ def build(
 
 
 @app.command()
+def export(
+    output: Annotated[Path, typer.Option(help="Output IQ package path")] = Path("bin/garminmetar.iq"),
+    jungle: Annotated[Path, typer.Option(help="Path to monkey.jungle")] = Path("monkey.jungle"),
+    developer_key: Annotated[Path, typer.Option(help="Path to developer key")] = Path("developer_key"),
+    sdk_path: Annotated[Path | None, typer.Option(help="Custom path to Connect IQ SDK")] = None,
+) -> None:
+    """Export store application package (.iq) for all devices in manifest."""
+    sdk_bin = find_sdk_bin(sdk_path)
+    monkeyc = sdk_bin / "monkeyc.bat"
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        str(monkeyc),
+        "-e",
+        "-f", str(jungle),
+        "-o", str(output),
+        "-y", str(developer_key),
+    ]
+    typer.echo(f"Exporting store package {output}...")
+    subprocess.run(cmd, check=True)
+    typer.echo("Export successful")
+
+
+@app.command()
 def test(
     device: Annotated[str, typer.Option(help="Target device ID")] = "venu445mm",
     jungle: Annotated[Path, typer.Option(help="Path to monkey.jungle")] = Path("monkey.jungle"),
