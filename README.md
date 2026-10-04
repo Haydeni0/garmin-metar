@@ -2,8 +2,6 @@
 
 A Connect IQ app for Garmin watches that displays real-time METAR weather data, using the [AVWX API](https://avwx.rest).
 
-> **Note**: This app is experimental, built as quickly as possible for personal use.
-
 See on the [Garmin app store](https://apps.garmin.com/apps/2261817c-e073-4450-962f-10f5fa11840d).
 
 ## Features
